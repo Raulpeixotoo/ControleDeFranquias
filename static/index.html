@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Franchising - Team</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-logo" viewBox="0 0 24 24"><path d="M12 3l8 4v10l-8 4-8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></symbol>
+<symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V4h10v17M14 9h6v12M8 8h2M8 12h2M8 16h2"/></symbol>
+<symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9l2-5h14l2 5M3 9h18M4 9v11h16V9M9 20v-6h6v6"/></symbol>
+<symbol id="i-message" viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="i-sheet" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></symbol>
+<symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14A8 8 0 1110 4a7 7 0 0010 10z"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></symbol>
+<symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></symbol>
+<symbol id="i-kanban" viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/></symbol>
+<symbol id="i-bars" viewBox="0 0 24 24"><path d="M4 20h16M7 20v-9M12 20V4M17 20v-6"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2 6M20 4v7h-7"/></symbol>
+<symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></symbol>
+</defs></svg>
+
+<div class="app">
+<aside class="side">
+  <div class="brand">
+    <svg class="i logo" aria-hidden="true"><use href="#i-logo"/></svg>
+    <div><strong>Franchising - Team</strong><small id="netSummary">carregando…</small></div>
+  </div>
+  <nav id="tabs" aria-label="Seções do site">
+    <div class="nav-group"><span class="nav-title">Visão geral</span>
+      <button data-view="painel" class="active"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> Painel</button></div>
+    <div class="nav-group"><span class="nav-title">Rede</span>
+      <button data-view="unidades"><svg class="i" aria-hidden="true"><use href="#i-building"/></svg> Unidades</button>
+      <button data-view="masters"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> Usuários das unidades</button>
+      <button data-view="aberturas"><svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg> Aberturas por ano</button>
+      <button data-view="atualizacoes"><svg class="i" aria-hidden="true"><use href="#i-sheet"/></svg> Atualizações da planilha</button></div>
+    <div class="nav-group"><span class="nav-title">Expansão</span>
+      <button data-view="pipeline"><svg class="i" aria-hidden="true"><use href="#i-store"/></svg> Novas franquias</button></div>
+    <div class="nav-group"><span class="nav-title">Atendimento</span>
+      <button data-view="solicitacoes"><svg class="i" aria-hidden="true"><use href="#i-message"/></svg> Solicitações <span class="pill neutral" id="badgeSol">0</span></button>
+      <button data-view="ocorrencias"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg> Ocorrências <span class="pill" id="badgeOc">0</span></button></div>
+    <div class="nav-group"><span class="nav-title">Sistema</span>
+      <button data-view="atividade"><svg class="i" aria-hidden="true"><use href="#i-activity"/></svg> Atividade</button></div>
+  </nav>
+  <div class="side-foot">
+    <button class="btn ghost" id="btnTheme" title="Alternar tema claro/escuro"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg> Tema</button>
+    <button class="btn ghost" id="btnUser" title="Trocar nome"></button>
+  </div>
+</aside>
+
+<div class="stage">
+<div id="verBanner" hidden>O servidor está desatualizado em relação ao site (algumas funções vão dar erro 404). Feche a janela do <strong>iniciar.bat</strong> e abra de novo.</div>
+<div id="alerts" aria-live="assertive"></div>
+
+<main>
+  <!-- PAINEL -->
+  <section id="view-painel" class="view active">
+    <header class="page-head">
+      <h2>Painel da rede</h2>
+      <span class="muted" id="editHint" hidden>Arraste para reordenar; os botões de cada card mudam tamanho ou ocultam.</span>
+      <div class="page-actions"><button class="btn" id="btnEditDash"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg> Personalizar painel</button></div>
+    </header>
+    <div id="dashFilter" class="fchips" aria-label="Filtrar o painel por tipo de unidade"></div>
+    <div id="dashTray" class="tray" hidden></div>
+    <div id="dash" class="grid"></div>
+  </section>
+
+  <!-- UNIDADES -->
+  <section id="view-unidades" class="view">
+    <header class="page-head">
+      <h2>Unidades <span class="muted" id="unitCount"></span></h2>
+      <div class="page-actions">
+        <button class="btn" id="btnExport" title="Excel com todas as colunas (inclusive as extras de cada aba)"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg> Exportar</button>
+        <button class="btn" id="btnImport" title="CSV (sem limite de linhas) ou Excel de unidades"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg> Importar</button>
+        <button class="btn primary" id="btnNewUnit"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> Nova unidade</button>
+      </div>
+    </header>
+    <div class="filters">
+      <input type="search" id="fUnitQ" placeholder="Buscar nome, cidade, responsável, CNPJ…">
+      <select id="fUnitUf"><option value="">Todas UFs</option></select>
+      <select id="fUnitTipo"><option value="">Todos os tipos</option></select>
+      <select id="fUnitConsultor"><option value="">Todos consultores</option></select>
+      <select id="fUnitSaude">
+        <option value="">Qualquer situação</option>
+        <option value="viva">Ativas na rede</option>
+        <option value="fechada">Fechadas / inativas / saíram</option>
+        <option value="problema">Com ocorrência aberta</option>
+        <option value="critica">Crítica</option>
+        <option value="ok">Sem ocorrências</option>
+        <option value="solab">Com solicitação aberta</option>
+        <option value="semresp">Sem responsável</option>
+      </select>
+      <select id="fUnitSort"><option value="saude">Ordem: gravidade</option><option value="nome">Ordem: nome</option><option value="solic">Ordem: solicitações (90 d)</option></select>
+    </div>
+    <div id="units" class="cards"></div>
+    <div class="more"><button class="btn" id="btnMoreUnits" hidden>Mostrar mais</button></div>
+  </section>
+
+  <section id="view-masters" class="view">
+    <header class="page-head"><div><span class="masters-eyebrow">Gestão de acessos</span><h2>Usuários das unidades</h2></div><div class="page-actions">
+      <button class="btn" id="mastersImport">Atualizar planilha</button><input type="file" id="mastersFile" accept=".csv,.xlsx,.xlsm" hidden>
+      <button class="btn primary" id="mastersNew">Novo usuário</button>
+    </div></header>
+    <p class="muted masters-intro">Controle de masters e operacionais, vinculado às unidades ativas pelo número do ponto. Alterações neste cadastro são locais; a regularização do acesso deve ser solicitada no sistema de origem.</p>
+    <div id="mastersSummary" class="sumgrid"></div>
+    <div class="filters" id="mastersFilters">
+      <label class="masters-field"><span>Buscar usuário</span><input type="search" id="mastersQ" aria-label="Buscar usuários" placeholder="Nome, matrícula, ponto ou unidade"></label>
+      <label class="masters-field"><span>Perfil de acesso</span><select id="mastersPerfil" aria-label="Perfil"><option value="">Todos os perfis</option><option value="2">Master</option><option value="1">Operacional</option><option value="3">Código 3</option><option value="4">Código 4</option></select></label>
+      <label class="masters-field"><span>Situação do usuário</span><select id="mastersEnabled" aria-label="Situação do usuário"><option value="">Ativos e inativos</option><option value="1">Ativos</option><option value="0">Inativos</option></select></label>
+      <label class="masters-field"><span>Segundo fator</span><select id="mastersSegundo" aria-label="Segundo fator"><option value="">Segundo fator: todos</option><option value="S">Ativo</option><option value="N">Inativo</option></select></label>
+      <label class="masters-field"><span>Vínculo com unidade</span><select id="mastersVinculo" aria-label="Vínculo com unidade"><option value="">Todos os vínculos</option><option value="vinculado">Unidade vinculada</option><option value="sem_unidade">Sem unidade ativa</option><option value="ambiguo">Mais de uma unidade</option></select></label>
+      <label class="masters-pending"><input type="checkbox" id="mastersPendentes"> Masters sem segundo fator</label>
+    </div>
+    <p id="mastersMessage" role="status"></p>
+    <div class="tablewrap masters-results"><table class="cmp masters-table"><thead><tr><th>Usuário / matrícula</th><th>Perfil</th><th>Ponto / unidade ativa</th><th>Usuário</th><th>Segundo fator</th><th>Pendência</th><th>Ações</th></tr></thead><tbody id="mastersRows"></tbody></table></div>
+    <div class="gridbar masters-pagination"><button class="btn" id="mastersPrev">Anterior</button><span id="mastersPage"></span><button class="btn" id="mastersNext">Próxima</button></div>
+  </section>
+
+  <!-- OCORRENCIAS -->
+  <section id="view-ocorrencias" class="view">
+    <header class="page-head">
+      <h2>Ocorrências <span class="muted" id="ocCount"></span></h2>
+      <div class="page-actions"><button class="btn primary" id="btnNewOc"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> Nova ocorrência</button></div>
+    </header>
+    <div class="filters">
+      <input type="search" id="fOcQ" placeholder="Buscar…">
+      <select id="fOcSev">
+        <option value="">Toda severidade</option>
+        <option value="critica">Crítica</option>
+        <option value="alta">Alta</option>
+        <option value="media">Média</option>
+        <option value="baixa">Baixa</option>
+      </select>
+    </div>
+    <div id="incidents" class="cards one"></div>
+  </section>
+
+  <!-- NOVAS FRANQUIAS (pipeline de abertura) -->
+  <section id="view-pipeline" class="view">
+    <header class="page-head">
+      <h2>Novas franquias</h2>
+      <div class="page-actions">
+        <button class="btn" id="btnPipeCfg"><svg class="i" aria-hidden="true"><use href="#i-settings"/></svg> Configurar pipeline</button>
+        <button class="btn" id="btnAbUpload"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg> Planilha</button>
+        <button class="btn primary" id="btnAbNew"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> Candidato</button>
+      </div>
+    </header>
+    <div class="filters-bar">
+      <div class="seg" id="pipeMode" role="tablist">
+        <button data-mode="cards"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg> Cards</button><button data-mode="grid"><svg class="i" aria-hidden="true"><use href="#i-table"/></svg> Planilha</button><button data-mode="req"><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg> Pedir dados aos franqueados</button>
+      </div>
+    </div>
+    <div class="filters">
+      <input type="search" id="fPipeQ" placeholder="Buscar localidade ou candidato…">
+      <select id="fPipeUf"><option value="">Todas UFs</option></select>
+      <select id="fPipeFase"><option value="">Qualquer fase atual</option></select>
+      <select id="fPipePri"><option value="">Qualquer prioridade</option><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option><option value="none">Sem prioridade</option></select>
+      <select id="fPipeSit">
+        <option value="andamento">Em andamento</option>
+        <option value="todas">Todas</option>
+        <option value="bloq">Com bloqueio</option>
+        <option value="parada">Paradas</option>
+        <option value="standby">Stand-by</option>
+        <option value="concluida">Concluídas</option>
+        <option value="descartada">Tudo “n/a”</option>
+        <option value="saiu">Saíram da planilha</option>
+      </select>
+      <select id="fPipeSort">
+        <option value="prioridade">Ordem: prioridade</option>
+        <option value="progresso">Ordem: mais adiantadas</option>
+        <option value="start">Ordem: conversa mais recente</option>
+        <option value="nome">Ordem: nome</option>
+      </select>
+    </div>
+    <div id="pipeSummary" class="summary"></div>
+    <div id="pipeCards" class="cards"></div>
+    <div id="pipeGrid" hidden></div>
+    <div id="pipeReq" hidden></div>
+  </section>
+
+  <!-- SOLICITACOES (chamados das franquias) -->
+  <section id="view-solicitacoes" class="view">
+    <header class="page-head">
+      <h2>Solicitações</h2>
+      <div class="page-actions">
+        <button class="btn" id="btnSolCfg"><svg class="i" aria-hidden="true"><use href="#i-settings"/></svg> Configurar</button>
+        <button class="btn primary" id="btnSolNew"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> Nova solicitação</button>
+      </div>
+    </header>
+    <div class="filters-bar">
+      <div class="seg" id="solMode"><button data-smode="kanban"><svg class="i" aria-hidden="true"><use href="#i-kanban"/></svg> Abertas</button><button data-smode="lista"><svg class="i" aria-hidden="true"><use href="#i-table"/></svg> Finalizadas</button><button data-smode="ranking"><svg class="i" aria-hidden="true"><use href="#i-bars"/></svg> Ranking por unidade</button></div>
+      <select id="fSolPer" hidden><option value="30">Últimos 30 dias</option><option value="90" selected>Últimos 90 dias</option><option value="365">Último ano</option><option value="0">Todas</option></select>
+    </div>
+    <div class="filters">
+      <input type="search" id="fSolQ" placeholder="Buscar título, Jira, unidade…">
+      <select id="fSolCat"></select><select id="fSolSub"></select><select id="fSolResp"></select>
+      <select id="fSolPri"><option value="">Qualquer prioridade</option><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select>
+    </div>
+    <div id="solSummary" class="summary"></div>
+    <div id="solBoard" class="kb"></div>
+    <div id="solList" hidden></div>
+    <div id="solRank" hidden></div>
+  </section>
+
+  <!-- ABERTURAS -->
+  <section id="view-aberturas" class="view">
+    <header class="page-head">
+      <div><h2>Aberturas por ano</h2><p class="sub">Pela data de abertura (coluna DESDE da planilha)</p></div>
+    </header>
+    <div class="filters">
+      <select id="fAbTipo"><option value="">Todos os tipos</option></select>
+      <select id="fAbUf"><option value="">Todas UFs</option></select>
+      <select id="fAbAnos">
+        <option value="6">Últimos 6 anos</option><option value="10">Últimos 10 anos</option><option value="0">Todos os anos</option>
+      </select>
+    </div>
+    <div id="abContent"></div>
+  </section>
+
+  <!-- ATUALIZACOES -->
+  <section id="view-atualizacoes" class="view">
+    <header class="page-head">
+      <h2>Atualizações da planilha</h2>
+      <div class="page-actions"><button class="btn primary" id="btnUpload"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg> Enviar planilha do mês</button></div>
+    </header>
+    <div id="snapList" class="cards one"></div>
+  </section>
+
+  <!-- ATIVIDADE -->
+  <section id="view-atividade" class="view">
+    <header class="page-head"><h2>Atividade recente</h2></header>
+    <div id="logList" class="card"></div>
+  </section>
+</main>
+</div>
+</div>
+
+<div id="toasts"></div>
+
+<!-- Modal unidade -->
+<dialog id="dlgUnit">
+  <form method="dialog" id="formUnit">
+    <h3 id="dlgUnitTitle">Unidade</h3>
+    <label>Nome <input name="nome" required maxlength="120"></label>
+    <div class="row">
+      <label>Tipo <input name="tipo" list="tiposList" maxlength="60" placeholder="Franquia, Hub, Ponto…"></label>
+      <label>UF <select name="uf" required></select></label>
+    </div>
+    <label>Cidade <input name="cidade" maxlength="80"></label>
+    <label>Responsável <input name="responsavel" maxlength="80"></label>
+    <label>Situação
+      <select name="situacao">
+        <option value="ativa">Ativa</option>
+        <option value="implantacao">Em implantação</option>
+        <option value="inativa">Inativa</option>
+        <option value="fechada">Fechada</option>
+      </select>
+    </label>
+    <datalist id="tiposList"></datalist>
+    <details id="unitCad"><summary>Dados cadastrais (razão social, CNPJ, endereço, contatos…)</summary>
+      <div class="row"><label>Sigla <input name="sigla" maxlength="40"></label><label>Ponto <input name="ponto" maxlength="60"></label></div>
+      <div class="row"><label>Razão social <input name="razao_social" maxlength="200"></label><label>CNPJ <input name="cnpj" maxlength="30"></label></div>
+      <div class="row"><label>Abertura (desde) <input type="date" name="desde"></label><label>Aeroporto <input name="aeroporto" maxlength="60"></label></div>
+      <label>Responsável (franqueado / gerente / parceiro operacional) <input name="franqueado" maxlength="200"></label>
+      <div class="row"><label>Unidade responsável (master) <input name="unidade_master" maxlength="120"></label><label>Consultor de campo <input name="consultor" maxlength="80"></label></div>
+      <label>Equipe <input name="equipe" maxlength="200"></label>
+      <label>Endereço <input name="endereco" maxlength="200"></label>
+      <div class="row"><label>Bairro <input name="bairro" maxlength="80"></label><label>CEP <input name="cep" maxlength="20"></label></div>
+      <div class="row"><label>E-mail oficial <input name="email" maxlength="200"></label><label>E-mail gestor <input name="email_gestor" maxlength="200"></label></div>
+      <div class="row"><label>Telefone <input name="telefone" maxlength="60"></label><label>Celulares gestores <input name="celular" maxlength="200"></label></div>
+    </details>
+    <details id="unitDetail" hidden><summary>Todos os dados da planilha</summary><dl id="unitDetailBody"></dl></details>
+    <details id="unitSolsBox" hidden open><summary id="unitSolsSum">Solicitações desta unidade</summary><div id="unitSols" class="list"></div></details>
+    <div class="formErr" id="errUnit"></div>
+    <div class="foot">
+      <button type="button" class="btn danger ghost" id="btnDelUnit">Excluir</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal ocorrencia -->
+<dialog id="dlgOc">
+  <form method="dialog" id="formOc">
+    <h3 id="dlgOcTitle">Ocorrência</h3>
+    <label>Unidade <select name="unit_id" required></select></label>
+    <label>Título <input name="titulo" required maxlength="140" placeholder="Ex.: Incêndio na unidade"></label>
+    <div class="row">
+      <label>Categoria <input name="categoria" list="catsList" maxlength="60"></label>
+      <label>Severidade
+        <select name="severidade">
+          <option value="baixa">Baixa</option>
+          <option value="media" selected>Média</option>
+          <option value="alta">Alta</option>
+          <option value="critica">Crítica</option>
+        </select>
+      </label>
+    </div>
+    <label>Descrição <textarea name="descricao" rows="4" maxlength="2000"></textarea></label>
+    <label>Foto (opcional, até 2 MB)<input type="file" id="ocFoto" accept="image/png,image/jpeg,image/webp"></label>
+    <img id="ocFotoPreview" class="oc-photo" alt="Foto da ocorrência" hidden>
+    <label id="ocRemoveFotoLabel" hidden><input type="checkbox" id="ocRemoveFoto"> Remover foto atual</label>
+    <datalist id="catsList"></datalist>
+    <div class="formErr" id="errOc"></div>
+    <div class="foot">
+      <button type="button" class="btn danger ghost" id="btnDelOc">Excluir</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal importar -->
+<dialog id="dlgImport">
+  <form method="dialog" id="formImport">
+    <h3>Importar unidades</h3>
+    <p class="muted">Cole linhas ou escolha um arquivo CSV. <strong>Se escolher o Excel (.xlsx) de unidades, ele segue para a atualização mensal com comparação.</strong> Colunas do CSV (nessa ordem, separador <code>;</code> ou <code>,</code> ou tab):
+      <strong>nome; tipo; uf; responsável; cidade</strong>. Cabeçalho é opcional (pode colar direto do Excel).</p>
+    <input type="file" id="importFile" accept=".csv,.txt,.xlsx,.xlsm">
+    <textarea id="importText" rows="9" placeholder="Franquia Campinas;Franquia;SP;Ana Souza;Campinas"></textarea>
+    <div class="formErr" id="errImport"></div>
+    <div class="foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn primary">Importar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal upload planilha -->
+<dialog id="dlgUpload" class="wide">
+  <form method="dialog" id="formUpload">
+    <h3>Enviar planilha de unidades</h3>
+    <p class="muted">Todas as abas são lidas. Antes de gravar, mostramos o que mudou em relação à última atualização.</p>
+    <div class="row">
+      <label>Arquivo (.xlsx) <input type="file" id="upFile" accept=".xlsx,.xlsm" required></label>
+      <label>Mês de referência <input type="month" id="upMonth" required></label>
+    </div>
+    <div class="formErr" id="errUpload"></div>
+    <div id="upResult"></div>
+    <div class="foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn" id="btnAnalyze">Analisar</button>
+      <button type="button" class="btn primary" id="btnCommit" hidden>Confirmar atualização</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal candidato (detalhe) -->
+<dialog id="dlgAb" class="wide">
+  <div class="abhead">
+    <h3 id="abTitle"></h3><span class="spacer"></span><span id="abSaved" class="muted"></span>
+    <button type="button" class="btn ghost" data-close>Fechar</button>
+  </div>
+  <div class="row3">
+    <label>Localidade / unidade <input id="abNome" maxlength="120"></label>
+    <label>UF <select id="abUf"></select></label>
+    <label>Prioridade de abertura <select id="abPri"></select></label>
+  </div>
+  <div id="abMeta"></div>
+  <div id="abBody"></div>
+  <div class="foot"><button type="button" class="btn danger ghost" id="btnDelAb">Excluir candidato</button><span class="spacer"></span>
+    <button type="button" class="btn primary" id="btnAbToUnit"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> <span>Enviar para unidades ativas</span></button></div>
+</dialog>
+
+<!-- Modal novo candidato -->
+<dialog id="dlgAbNew">
+  <form method="dialog" id="formAbNew">
+    <h3>Novo candidato / franquia</h3>
+    <label>Localidade / unidade <input id="abNewNome" required maxlength="120" placeholder="Ex.: CO Campinas 05"></label>
+    <label>UF <select id="abNewUf" required></select></label>
+    <div class="formErr" id="errAbNew"></div>
+    <div class="foot"><span class="spacer"></span><button type="button" class="btn ghost" data-close>Cancelar</button><button type="submit" class="btn primary">Criar</button></div>
+  </form>
+</dialog>
+
+<!-- Modal configurar pipeline -->
+<dialog id="dlgPipeCfg" class="wide">
+  <div class="abhead"><h3>Configurar pipeline</h3><span class="spacer"></span><button type="button" class="btn ghost" data-close>Fechar</button></div>
+  <p class="muted">Fases → tipos (grupos) → campos. As mudanças valem na hora para todos. A ordem de cada lista é a ordem em que aparece.</p>
+  <div id="cfgBody"></div>
+</dialog>
+
+<!-- Modal upload planilha de aberturas -->
+<dialog id="dlgAbUp" class="wide">
+  <form method="dialog" id="formAbUp">
+    <h3>Enviar planilha de novas franquias</h3>
+    <p class="muted">Lê a aba escolhida (linha 1 = fases, linha 2 = tipos, linha 3 = campos). O que você editou no site é mantido, a menos que a planilha tenha mudado aquela célula.</p>
+    <div class="row">
+      <label>Arquivo (.xlsx) <input type="file" id="abUpFile" accept=".xlsx,.xlsm" required></label>
+      <label>Aba <input id="abUpSheet" value="start_26"></label>
+    </div>
+    <div class="formErr" id="errAbUp"></div>
+    <div id="abUpResult"></div>
+    <div class="foot"><span class="spacer"></span><button type="button" class="btn ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn" id="btnAbAnalyze">Analisar</button><button type="button" class="btn primary" id="btnAbCommit" hidden>Confirmar atualização</button></div>
+  </form>
+</dialog>
+
+<!-- Modal solicitacao -->
+<dialog id="dlgSol" class="wide">
+  <form method="dialog" id="formSol">
+    <div class="abhead"><h3 id="solTitle">Nova solicitação</h3><span class="spacer"></span><span id="solMeta" class="muted"></span><a id="sOpen" class="btn sm" target="_blank" rel="noopener" hidden>Abrir no Jira <svg class="i" aria-hidden="true"><use href="#i-external"/></svg></a></div>
+    <label style="margin-top:12px">Título <input id="sTitulo" required maxlength="160" placeholder="Ex.: Reset de senha do portal — Franquia X"></label>
+    <div class="row"><label>Categoria <select id="sCat" required></select></label><label>Subcategoria <select id="sSub"></select></label></div>
+    <div class="row"><label>Unidade (opcional — digite para buscar ou escreva livre) <input id="sUn" list="solUnits" autocomplete="off"></label>
+      <label>Prioridade <select id="sPri"></select></label></div>
+    <div class="row"><label>Solicitante (quem pediu) <input id="sSol" maxlength="100"></label><label>Responsável (quem atende) <input id="sResp" maxlength="100"></label></div>
+    <div class="row"><label>Chave do Jira <input id="sJira" maxlength="500" placeholder="Ex.: MRH-12086 (ou cole o link)"></label>
+      <label>Link do chamado (URL) <input id="sLink" maxlength="500" placeholder="https://…/browse/MRH-12086"></label></div>
+    <label>Etapa <select id="sEtapa"></select></label>
+    <div class="row"><label>Aberta em <input type="date" id="sCriado" title="Vazio = hoje. Preencha para registrar um chamado antigo."></label>
+      <label>Finalizada em <input type="date" id="sFinal" title="Preencha para registrar um chamado antigo já encerrado."></label></div>
+    <label>Descrição <textarea id="sDesc" rows="3" maxlength="4000"></textarea></label>
+    <datalist id="solUnits"></datalist>
+    <div id="solHistBox" hidden>
+      <h4 style="margin:10px 0 6px">Histórico</h4>
+      <div style="display:flex;gap:8px;margin-bottom:6px"><input id="sNote" placeholder="Adicionar anotação (ex.: franqueado respondeu, aguardando TI)…" style="flex:1"><button type="button" class="btn" id="btnSolNote">Anotar</button></div>
+      <div id="solHist" style="max-height:170px;overflow:auto"></div>
+    </div>
+    <div class="formErr" id="errSol"></div>
+    <div class="foot"><button type="button" class="btn danger ghost" id="btnSolDel" hidden>Excluir</button><span class="spacer"></span>
+      <button type="button" class="btn ghost" data-close>Fechar</button><button type="button" class="btn" id="btnSolFin" hidden><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> Finalizar</button>
+      <button type="button" class="btn" id="btnSolReopen" hidden><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg> Reabrir</button><button type="submit" class="btn primary">Salvar</button></div>
+  </form>
+</dialog>
+
+<!-- Modal configurar solicitacoes -->
+<dialog id="dlgSolCfg" class="wide">
+  <div class="abhead"><h3>Configurar solicitações</h3><span class="spacer"></span><button type="button" class="btn ghost" data-close>Fechar</button></div>
+  <p class="muted">Categorias com subcategorias, etapas do pipeline (as marcadas “finaliza” encerram a solicitação) e o endereço do Jira. Vale na hora para todos.</p>
+  <div id="solCfgBody" style="max-height:62vh;overflow:auto;padding-right:4px"></div>
+</dialog>
+
+<!-- Modal nome / codigo -->
+<dialog id="dlgName">
+  <form method="dialog" id="formName">
+    <h3>Quem está usando?</h3>
+    <p class="muted">Seu nome fica registrado no histórico de alterações.</p>
+    <label>Seu nome <input name="nome" required maxlength="60" autofocus></label>
+    <div class="foot"><span class="spacer"></span><button type="submit" class="btn primary">Entrar</button></div>
+  </form>
+</dialog>
+<dialog id="dlgCode">
+  <form method="dialog" id="formCode">
+    <h3>Código de acesso</h3>
+    <label>Código <input name="codigo" type="password" required autofocus></label>
+    <div class="formErr" id="errCode"></div>
+    <div class="foot"><span class="spacer"></span><button type="submit" class="btn primary">Entrar</button></div>
+  </form>
+</dialog>
+
+<script src="/static/app.js"></script>
+<script src="/static/pipeline.js"></script>
+<script src="/static/pipegrid.js"></script>
+<script src="/static/sol.js"></script>
+<script src="/static/masters.js"></script>
+</body>
+</html>
