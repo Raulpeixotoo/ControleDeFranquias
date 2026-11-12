@@ -189,6 +189,7 @@
         <option value="nome">Ordem: nome</option>
       </select>
     </div>
+    <div class="pipeline-toolbar"><p class="muted">Acompanhe por cards ou edite uma fase por vez na planilha.</p><button class="btn" id="pipeExpand" aria-pressed="false">Ampliar visão</button></div>
     <div id="pipeSummary" class="summary"></div>
     <div id="pipeCards" class="cards"></div>
     <div id="pipeGrid" hidden></div>
@@ -224,8 +225,8 @@
     <header class="page-head">
       <div><h2>Aberturas por ano</h2><p class="sub">Pela data de abertura (coluna DESDE da planilha)</p></div>
     </header>
+    <div id="abTypeFilter" class="fchips" aria-label="Tipos de unidade"></div>
     <div class="filters">
-      <select id="fAbTipo"><option value="">Todos os tipos</option></select>
       <select id="fAbUf"><option value="">Todas UFs</option></select>
       <select id="fAbAnos">
         <option value="6">Últimos 6 anos</option><option value="10">Últimos 10 anos</option><option value="0">Todos os anos</option>

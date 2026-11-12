@@ -372,6 +372,85 @@ details > summary { cursor: pointer; font-weight: 600; }
 .masters-dialog { width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
 .masters-dialog input, .masters-dialog select { min-height: 44px; }
 .masters-dialog .foot { flex-wrap: wrap; gap: 10px; }
+#mastersFilters #mastersQ { flex: 0 0 auto; height: 44px; min-height: 44px; }
+.masters-field { align-self: start; }
+
+/* Histórico de aberturas e área de trabalho das novas franquias */
+#abTypeFilter { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+#abTypeFilter .fchip.on { background: #dc0032; border-color: #dc0032; color: #fff; }
+#view-aberturas .ab-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+#view-aberturas .ab-grid .w { min-width: 0; padding: 16px; }
+#view-aberturas .ab-grid .num { font-size: 30px; }
+#view-aberturas .ab-grid h4 { font-size: var(--fs-sm); color: var(--muted); }
+.annual-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 16px; margin-bottom: 16px; }
+.annual-layout .w, .annual-comparison { padding: 18px; min-width: 0; }
+.annual-chart { align-self: start; }
+.annual-context { border-left: 3px solid #dc0032; line-height: 1.65; }
+.annual-layout p, .annual-comparison p { font-size: var(--fs-sm); margin: 6px 0 14px; }
+.annual-bars { max-height: 300px; overflow-y: auto; padding-right: 6px; }
+.annual-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 8px 0; font-size: var(--fs-sm); }
+.annual-bar b { text-align: right; font-variant-numeric: tabular-nums; }
+.annual-track { height: 12px; background: var(--none-bg); border-radius: 4px; overflow: hidden; }
+.annual-track span { display: block; height: 100%; background: var(--line-strong); border-radius: inherit; }
+.annual-bar.current .annual-track span { background: #dc0032; }
+.annual-table { width: 100%; min-width: 820px; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.annual-table th, .annual-table td { padding: 10px 8px; white-space: nowrap; }
+.annual-table th:first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); text-align: left; }
+.annual-table thead th { color: var(--muted); font-weight: 500; }
+.annual-table .current { background: var(--panel-2); }
+.annual-table .current th:first-child { color: #dc0032; background: var(--panel-2); }
+.pipeline-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin: 8px 0 14px; }
+.pipeline-toolbar p { margin: 0; font-size: var(--fs-sm); }
+#view-pipeline .summary { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+#view-pipeline .filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(130px, 1fr)); }
+#view-pipeline .filters input, #view-pipeline .filters select { min-width: 0; width: 100%; max-width: none; height: 40px; }
+#view-pipeline .seg { flex-wrap: wrap; }
+#view-pipeline .seg button { min-height: 42px; }
+#pipeCards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+#pipeCards .fc { min-width: 0; padding: 16px; gap: 10px; overflow-wrap: anywhere; }
+#pipeCards .phases { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+#pipeCards .ph .lbl { white-space: normal; }
+.pipeline-grid-controls { padding: 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; gap: 16px; align-items: center; }
+.pipeline-grid-controls > label:not(.chk) { margin: 0; min-width: 180px; }
+.pipeline-grid-controls > span { flex: 1 1 220px; }
+#pipeGrid { min-width: 0; }
+#pipeGrid .gscroll { max-width: 100%; max-height: 65dvh; overscroll-behavior: contain; }
+#pipeGrid table.pg { min-width: 100%; }
+#pipeGrid table.pg th, #pipeGrid table.pg td { padding: 7px 9px; }
+#pipeGrid table.pg .sticky1 { width: 110px; min-width: 110px; }
+#pipeGrid table.pg .sticky2 { left: 110px; width: 180px; min-width: 180px; max-width: 180px; }
+#pipeGrid table.pg th.band { background: #dc0032; }
+#pipeGrid table.pg thead tr:nth-child(1) th { height: 40px; top: 0; white-space: nowrap; }
+#pipeGrid table.pg thead tr:nth-child(2) th { height: 32px; top: 40px; }
+#pipeGrid table.pg thead tr:nth-child(3) th { top: 72px; min-width: 106px; max-width: 160px; padding-top: 10px; padding-bottom: 10px; }
+#pipeGrid table.pg .nm { white-space: normal; text-align: left; }
+#dlgAb { width: min(1040px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+#dlgAb .frow { grid-template-columns: minmax(150px, 42%) minmax(0, 1fr); }
+#dlgAb .frow > * { min-width: 0; }
+.pipeline-expanded-body { overflow: hidden; }
+#view-pipeline.pipeline-expanded { position: fixed; inset: 12px; z-index: 30; padding: 22px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+@media (max-width: 1100px) {
+  #view-aberturas .ab-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .annual-layout { grid-template-columns: minmax(0, 1fr); }
+  #view-pipeline .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #view-pipeline .filters input[type=search] { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  #view-aberturas .ab-grid { gap: 8px; }
+  #view-aberturas .ab-grid .w { padding: 12px; }
+  #view-aberturas .ab-grid .num { font-size: 26px; }
+  #abTypeFilter .spacer { display: none; }
+  #view-pipeline .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-pipeline .page-actions { margin-left: 0; }
+  #view-pipeline .seg { display: flex; width: 100%; }
+  #view-pipeline .seg button { flex: 1; justify-content: center; white-space: normal; }
+  #view-pipeline.pipeline-expanded { inset: 0; border-radius: 0; padding: 14px; }
+  #pipeGrid table.pg .sticky1 { position: static; }
+  #pipeGrid table.pg .sticky2 { left: 0; min-width: 150px; width: 150px; max-width: 150px; }
+  #dlgAb { padding: 14px; }
+  #dlgAb .frow { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 10px 0; }
+  #dlgAb .frow input, #dlgAb .frow select { width: 100%; min-height: 40px; }
+}
 @media (max-width: 1250px) {
   #mastersFilters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .masters-results { border: 0; background: transparent; overflow: visible; }

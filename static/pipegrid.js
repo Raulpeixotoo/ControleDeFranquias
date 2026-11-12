@@ -2,7 +2,8 @@
 /* Visões extras da aba Novas franquias: Planilha (estilo Excel) e Solicitações aos franqueados + prioridade.
    Depende de app.js e pipeline.js (pipeAll, pipeModel, interp, saveValor, renderPipe, priBadge, PRI_OPTS...). */
 
-let gridHide = new Set(JSON.parse(localStorage.getItem("cf_gridhide") || "[]"));
+let gridFocus = localStorage.getItem("cf_gridfocus") || "first";
+let gridIdent = localStorage.getItem("cf_gridident") === "1";
 const NIVEL = { alta: 1, media: 2, baixa: 3 };
 const pad2 = n => String(n).padStart(2, "0");
 
@@ -27,25 +28,27 @@ function gridText(c, raw) {
 }
 
 function renderGrid(M, list) {
-  const fases = M.fases.filter(f => !gridHide.has(f.id));
-  const cols = M.ident.map(c => ({ c, id: true }));
+  const selected = gridFocus === "all" ? "all" : M.fases.some(f => String(f.id) === gridFocus) ? gridFocus : String(M.fases[0]?.id || "");
+  const fases = selected === "all" ? M.fases : M.fases.filter(f => String(f.id) === selected);
+  const cols = gridIdent ? M.ident.map(c => ({ c, id: true })) : [];
   const phaseCols = fases.map(f => ({ f, cs: M.byFase[f.id] }));
-  const bar = `<div class="gridbar"><strong>Mostrar fases:</strong>${M.fases.map(f => `<label class="chk"><input type="checkbox" data-gph="${f.id}" ${gridHide.has(f.id) ? "" : "checked"}> ${esc(f.nome)}</label>`).join("")}
-    <span class="muted">Clique numa célula para editar · a coluna Prioridade é editável</span></div>`;
+  const bar = `<div class="gridbar pipeline-grid-controls"><label>Fase na planilha<select id="gridFocus"><option value="all" ${selected === "all" ? "selected" : ""}>Todas as fases</option>${M.fases.map(f => `<option value="${f.id}" ${String(f.id) === selected ? "selected" : ""}>${esc(f.nome)}</option>`).join("")}</select></label>
+    <label class="chk"><input type="checkbox" id="gridIdent" ${gridIdent ? "checked" : ""}> Dados do candidato</label>
+    <span class="muted">Clique na célula para editar. Use a rolagem da planilha para ver os demais campos.</span></div>`;
   // cabecalho em 3 linhas: fases / tipos / campos
   const r1 = `<th rowspan="3" class="sticky1">Prioridade</th><th rowspan="3" class="sticky2">Localidade</th><th rowspan="3">UF</th><th rowspan="3">Fase atual</th><th rowspan="3">%</th>`
     + (cols.length ? `<th colspan="${cols.length}" class="band id">Identificação</th>` : "")
     + phaseCols.map(({ f, cs }) => `<th colspan="${Math.max(1, cs.length)}" class="band b${M.fases.indexOf(f) % 4}">${esc(f.nome)}</th>`).join("");
   const typeRuns = cs => runs(cs, c => M.tipoName[c.tipo_id] || "").map(r => `<th colspan="${r.n}" class="tp">${esc(r.k)}</th>`).join("");
   const r2 = (cols.length ? typeRuns(cols.map(x => x.c)) : "") + phaseCols.map(({ cs }) => cs.length ? typeRuns(cs) : `<th class="tp"></th>`).join("");
-  const r3 = cols.map(x => `<th title="${esc(x.c.label)}">${esc(x.c.label)}</th>`).join("") + phaseCols.map(({ cs }) => cs.map(c => `<th title="${esc(c.label)}">${esc(c.label)}</th>`).join("")).join("");
+  const r3 = cols.map(x => `<th title="${esc(x.c.label)}">${esc(x.c.label)}</th>`).join("") + phaseCols.map(({ cs }) => cs.map(c => `<th title="${esc(c.label)}">${esc(c.label)}</th>`).join("") || '<th>Sem campos</th>').join("");
 
   const body = list.map(({ ab, c }) => {
     const idTds = cols.map(({ c: cp }) => `<td class="g g-id" data-gab="${ab.id}" data-gcampo="${cp.id}" title="${esc(ab.v[cp.id] || "")}">${esc((ab.v[cp.id] || "").slice(0, 30))}</td>`).join("");
     const phTds = phaseCols.map(({ cs }) => cs.map(cp => {
       const raw = ab.v[cp.id] || "", s = interp(raw);
       return `<td class="g g-${s}" data-gab="${ab.id}" data-gcampo="${cp.id}" title="${esc(cp.label)}: ${esc(raw)}">${esc(gridText(cp, raw))}</td>`;
-    }).join("")).join("");
+    }).join("") || '<td>—</td>').join("");
     return `<tr class="st-${c.status}"><td class="sticky1"><select class="pri-sel pri-${ab.prioridade || ""}" data-gpri="${ab.id}">${priOptions(ab.prioridade)}</select></td>
       <td class="sticky2"><button class="nm" data-ab="${ab.id}" title="Abrir detalhe">${esc(ab.nome)}</button></td><td>${esc(ab.uf)}</td>
       <td>${c.cur ? esc(c.cur.f.nome) : c.status === "concluida" ? "Concluída" : c.standby ? "Stand-by" : "—"}</td><td style="text-align:right">${c.overall}%</td>${idTds}${phTds}</tr>`;
@@ -138,10 +141,8 @@ document.addEventListener("change", e => {
   const t = e.target;
   if (t.matches("#pipeGrid [data-gedit]")) { const td = t.closest("td"); saveValor(td.dataset.gcampo, t.value.trim(), td.dataset.gab); return; }
   if (t.matches("[data-gpri]")) { setPrioridade(t.dataset.gpri, t.value); return; }
-  if (t.matches("[data-gph]")) {
-    const id = +t.dataset.gph; t.checked ? gridHide.delete(id) : gridHide.add(id);
-    localStorage.setItem("cf_gridhide", JSON.stringify([...gridHide])); renderPipe();
-  }
+  if (t.id === "gridFocus") { gridFocus = t.value; localStorage.setItem("cf_gridfocus",gridFocus); renderPipe(); }
+  if (t.id === "gridIdent") { gridIdent = t.checked; localStorage.setItem("cf_gridident",gridIdent ? "1" : "0"); renderPipe(); }
 });
 document.addEventListener("focusout", e => {                                  // saiu da celula sem alterar: volta ao texto
   if (!e.target.closest("#pipeGrid td[data-gcampo]")) return;

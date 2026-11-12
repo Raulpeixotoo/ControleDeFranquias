@@ -17,6 +17,38 @@ def postgres_enabled():
     return bool(os.environ.get("DATABASE_URL", "").strip())
 
 
+def pool_stats():
+    keys = ("pool_size", "pool_available", "requests_waiting", "connections_errors", "requests_errors")
+    with _pool_lock:
+        pools = list(_pools.values())
+    stats = [pool.get_stats() for pool in pools]
+    return {key: sum(s.get(key, 0) for s in stats) for key in keys}
+
+
+def failure_details(error):
+    """Diagnóstico público sem incorporar a mensagem original ou credenciais."""
+    name = type(error).__name__
+    if name == "PoolTimeout":
+        return "DB_POOL_TIMEOUT", "O servidor não conseguiu obter uma conexão com o banco no prazo.", True
+    if name == "TooManyRequests":
+        return "DB_BUSY", "Há muitas requisições aguardando o banco.", True
+    if name == "LockNotAvailable":
+        return "DB_LOCK", "Uma operação está bloqueando o acesso aos dados.", False
+    if name == "QueryCanceled":
+        return "DB_QUERY_TIMEOUT", "A consulta ao banco excedeu o prazo.", False
+    text = str(error).lower()
+    state = getattr(error, "sqlstate", None)
+    if state == "28P01" or "password authentication failed" in text:
+        return "DB_AUTH", "O banco recusou a autenticação. Confira a DATABASE_URL no Render.", False
+    if any(value in text for value in ("failed to resolve", "could not translate host", "getaddrinfo")):
+        return "DB_DNS", "O servidor não conseguiu localizar o endereço do banco.", False
+    if any(value in text for value in ("certificate", "ssl", "tls", "channel binding")):
+        return "DB_TLS", "Não foi possível estabelecer a conexão segura com o banco.", False
+    if "timeout" in text or "timed out" in text:
+        return "DB_CONNECT_TIMEOUT", "O banco não respondeu à tentativa de conexão no prazo.", True
+    return "DB_CONNECTION", "A conexão com o banco foi interrompida ou não pôde ser estabelecida.", True
+
+
 def translate(sql):
     """Converte somente os padrões SQL usados pelo projeto; preserva literais."""
     parts = re.split(r"('(?:[^']|'')*')", sql)
@@ -160,13 +192,15 @@ def connect(path):
         return conn
     if not url.startswith(("postgresql://", "postgres://")):
         raise RuntimeError("DATABASE_URL precisa ser uma URL PostgreSQL.")
-    from psycopg_pool import ConnectionPool
+    from psycopg_pool import NullConnectionPool
     with _pool_lock:
         if url not in _pools:
-            _pools[url] = ConnectionPool(url, min_size=0, max_size=4, timeout=12,
-                max_waiting=12, max_idle=60, reconnect_timeout=15,
-                kwargs={"connect_timeout": 10, "prepare_threshold": None},
-                check=ConnectionPool.check_connection, open=True)
+            # Neon já usa PgBouncer. Não manter outra fila de reconexões em
+            # segundo plano: tentativas expiradas poderiam saturar max_waiting.
+            # NullConnectionPool conecta na requisição, limita a concorrência e
+            # fecha/devolve a conexão ao término, sem crescer um pool ocioso.
+            _pools[url] = NullConnectionPool(url, max_size=4, timeout=20,
+                max_waiting=12, kwargs={"connect_timeout": 10, "prepare_threshold": None}, open=True)
         pool = _pools[url]
     return PostgresConnection(pool.getconn(), pool)
 

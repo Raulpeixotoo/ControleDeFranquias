@@ -65,9 +65,37 @@ await step("painel", async () => {
   await shot("painel");
 });
 
+await step("recuperação de falhas de leitura", async () => {
+  const result = await ev(`(async()=>{
+    const original = window.fetch;
+    let calls = 0;
+    window.fetch = async (url, options) => {
+      if (!String(url).endsWith('/test-retry')) return original(url, options);
+      calls++;
+      return new Response(JSON.stringify(calls === 1 ? {error:'Falha temporária',retryable:true} : {ok:true}), {status:calls === 1 ? 503 : 200,headers:{'Content-Type':'application/json'}});
+    };
+    try { const data = await api('/test-retry'); return {calls,ok:data.ok}; }
+    finally { window.fetch = original; }
+  })()`);
+  check("leitura é repetida uma vez após falha transitória", result.calls === 2 && result.ok);
+  const writes = await ev(`(async()=>{
+    const original = window.fetch; let calls = 0;
+    window.fetch = async (url, options) => {
+      if (!String(url).endsWith('/test-retry')) return original(url, options);
+      calls++;
+      return new Response(JSON.stringify({error:'Falha temporária',retryable:true}), {status:503,headers:{'Content-Type':'application/json'}});
+    };
+    try { await api('/test-retry','POST',{}); return {calls,failed:false}; }
+    catch { return {calls,failed:true}; }
+    finally { window.fetch = original; }
+  })()`);
+  check("gravação não é repetida automaticamente", writes.calls === 1 && writes.failed);
+});
+
 await step("usuários das unidades", async () => {
   check("página de usuários abre", await nav("masters"));
   check("usuários carregam", await waitFor(`document.querySelectorAll('#mastersRows tr').length > 0`));
+  check("busca de usuários mantém altura de campo", await ev(`document.querySelector('#mastersQ').getBoundingClientRect().height <= 48`));
   check("master sem segundo fator aparece sinalizado", await ev(`document.querySelector('#mastersRows').innerText.includes('Ativar segundo fator')`));
   for (const width of [390, 768]) {
     await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
@@ -118,6 +146,16 @@ await step("novas franquias", async () => {
   await ev(`document.querySelector('#dlgAb [data-close]').click()`);
   await ev(`document.querySelector('#pipeMode [data-mode="grid"]').click()`); await sleep(500);
   check("visão planilha tem tabela", (await count("#pipeGrid table tbody tr")) >= 2); await shot("pipeline-planilha");
+  check("planilha inicia mostrando uma fase", await ev(`document.querySelectorAll('#pipeGrid thead tr:first-child .band:not(.id)').length === 1`));
+  await ev(`document.querySelector('#pipeExpand').click()`);
+  check("ampliar visão usa a largura da tela", await ev(`document.querySelector('#view-pipeline').getBoundingClientRect().width >= window.innerWidth - 30`));
+  await shot("pipeline-ampliada");
+  await ev(`document.querySelector('#pipeExpand').click()`);
+  for (const width of [390, 768, 1366]) {
+    await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+    check(`planilha contida na página em ${width}px`, await ev(`document.documentElement.scrollWidth <= window.innerWidth && document.querySelector('#pipeGrid .gscroll').getBoundingClientRect().right <= window.innerWidth`));
+  }
+  await send("Emulation.clearDeviceMetricsOverride");
   await ev(`(()=>{ const td=[...document.querySelectorAll('#pipeGrid td.g-pend, #pipeGrid td.g-vazio')][0]; window.__cel = td.dataset.gab + ':' + td.dataset.gcampo; td.click(); const s=td.querySelector('select'); s.value='ok'; s.dispatchEvent(new Event('change',{bubbles:true})); })()`);
   check("editar célula da planilha salva como OK", await waitFor(`(()=>{ const [a,c]=window.__cel.split(':'); const td=document.querySelector('#pipeGrid td[data-gab="'+a+'"][data-gcampo="'+c+'"]'); return td && td.classList.contains('g-ok') })()`));
   await ev(`document.querySelector('#pipeMode [data-mode="req"]').click()`); await sleep(500);
@@ -177,7 +215,18 @@ await step("ocorrências e demais abas", async () => {
   check("aba ocorrências abre", await nav("ocorrencias"));
   check("lista a ocorrência crítica", (await count("#incidents article")) >= 1); await shot("ocorrencias");
   check("nova ocorrência abre", await dialog(`document.querySelector('#btnNewOc').click()`, "dlgOc"));
-  check("aba aberturas por ano tem tabela", (await nav("aberturas")) && (await count("#abContent table")) >= 1); await shot("aberturas");
+  check("aba aberturas por ano tem tabela", (await nav("aberturas")) && (await count("#abContent table")) >= 1);
+  check("aberturas tem filtros de tipo em botões", (await count('#abTypeFilter [data-abtipo]')) >= 3);
+  check("comparativo tem um ano por linha", await ev(`/^20\\d{2}$/.test(document.querySelector('.annual-table tbody tr th').innerText)`));
+  await ev(`document.querySelector('#abTypeFilter [data-abpreset="all"]').click()`);
+  check("selecionar todos os tipos atualiza os botões", await ev(`[...document.querySelectorAll('#abTypeFilter [data-abtipo]')].every(b => b.getAttribute('aria-pressed') === 'true')`));
+  await shot("aberturas");
+  for (const width of [390, 768, 1366]) {
+    await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+    check(`aberturas sem rolagem horizontal da página em ${width}px`, await ev(`document.documentElement.scrollWidth <= window.innerWidth`));
+    if (width === 390) await shot("aberturas-celular");
+  }
+  await send("Emulation.clearDeviceMetricsOverride");
   check("aba atualizações lista os envios", (await nav("atualizacoes")) && (await count("#snapList article")) >= 1); await shot("atualizacoes");
   check("enviar planilha de unidades abre", await dialog(`document.querySelector('#btnUpload').click()`, "dlgUpload"));
   check("aba atividade lista o histórico", (await nav("atividade")) && (await count("#logList .logrow")) >= 1); await shot("atividade");

@@ -1335,8 +1335,13 @@ if database.postgres_enabled():
     from psycopg.errors import QueryCanceled, LockNotAvailable
     from psycopg_pool import PoolTimeout, TooManyRequests
     def database_unavailable(error):
-        app.logger.warning("Banco indisponível: %s", type(error).__name__)
-        return jsonify(error="O banco demorou a responder ou está indisponível. Tente novamente em alguns instantes."), 503
+        code, message, retryable = database.failure_details(error)
+        reference = uuid.uuid4().hex[:8]
+        conn = g.get("db")
+        app.logger.warning("Banco indisponível: %s codigo=%s ref=%s rota=%s sqlstate=%s consultas=%s pool=%s",
+                           type(error).__name__, code, reference, request.path,
+                           getattr(error, "sqlstate", None), getattr(conn, "query_count", 0), database.pool_stats())
+        return jsonify(error=f"{message} Tente novamente. [{code} · {reference}]", retryable=retryable), 503
     for error_type in (OperationalError, QueryCanceled, LockNotAvailable, PoolTimeout, TooManyRequests):
         app.register_error_handler(error_type, database_unavailable)
 

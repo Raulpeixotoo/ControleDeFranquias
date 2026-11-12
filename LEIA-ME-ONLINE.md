@@ -76,8 +76,9 @@ Não precisa comprar domínio: use o endereço HTTPS `*.onrender.com` fornecido 
 5. Nos cabeçalhos da resposta, `Server-Timing` informa tempo total do processamento (`app`) e das consultas (`db`), em milissegundos. O tempo restante pode incluir conexão inicial, transferência e outros trabalhos.
 6. Requisições acima de 1,5 segundo geram um aviso de lentidão nos logs do Render, sem registrar dados das consultas ou senhas.
 
-O app reutiliza conexões, usa lotes nas importações, comprime JSON e impede sincronizações automáticas simultâneas.
-Uma consulta tem limite de 20 segundos, a espera por bloqueios de 5 segundos e a aquisição de conexão de 12 segundos.
+O app usa o pool de conexões do Neon, limita a concorrência local, usa lotes nas importações, comprime JSON e impede sincronizações automáticas simultâneas. Cada requisição adquire e libera a conexão, sem manter uma segunda fila de reconexões em segundo plano no Render.
+Uma consulta tem limite de 20 segundos, a espera por bloqueios de 5 segundos e a aquisição de conexão de 20 segundos.
+Falhas de banco exibem um código e uma referência que podem ser localizados nos logs do Render. Leituras com falha de conexão transitória são repetidas uma única vez; gravações não são repetidas automaticamente.
 Esses limites não garantem que uma operação inteira de importação termine em 20 segundos.
 O navegador limita leituras a 30 segundos e gravações a 120 segundos. Se uma gravação expirar, confira a lista antes de repetir: ela pode ter sido concluída no servidor.
 

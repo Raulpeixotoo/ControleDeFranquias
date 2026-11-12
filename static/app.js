@@ -95,6 +95,10 @@ async function api(path, method = "GET", body) {
     }
     if (res.status === 401) { await askCode(tries > 0); continue; }
     const data = await res.json().catch(() => ({}));
+    if (res.status === 503 && method === "GET" && data.retryable && tries === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      continue;
+    }
     if (!res.ok) throw new Error(data.error || (res.status === 404 ? "Recurso não encontrado: o servidor está desatualizado. Feche a janela do iniciar.bat e abra de novo." : `Erro ${res.status}`));
     return data;
   }
@@ -193,31 +197,47 @@ function delta(cur, prev) {
   return `<span class="${d > 0 ? "up" : "down"}">${d > 0 ? "▲ +" : "▼ "}${d}${pct}</span>`;
 }
 
+let abTipos = (() => { try { const value = JSON.parse(localStorage.getItem("cf_ab_tipos")); return value === "all" || Array.isArray(value) ? value : null; } catch { return null; } })();
+const abSel = u => abTipos === "all" || (Array.isArray(abTipos) ? abTipos : MAIN_TIPOS).includes(u.tipo);
+function renderAbFilter() {
+  const tipos = [...new Set([...MAIN_TIPOS, ...S.units.map(u => u.tipo).filter(Boolean)])];
+  const selected = abTipos === "all" ? tipos : Array.isArray(abTipos) ? abTipos : MAIN_TIPOS;
+  $("#abTypeFilter").innerHTML = '<span class="muted">Tipos de unidade:</span>' + tipos.map(t =>
+    `<button class="fchip ${selected.includes(t) ? "on" : ""}" aria-pressed="${selected.includes(t)}" data-abtipo="${esc(t)}" title="${esc(tipoLabel(t))}">${esc(t)} <small>${S.units.filter(u => u.tipo === t).length}</small></button>`).join("") +
+    '<span class="spacer"></span><button class="btn sm ghost" data-abpreset="main">Só CO · LJ · PA · FL</button><button class="btn sm ghost" data-abpreset="all">Todos</button>';
+}
+$("#abTypeFilter").addEventListener("click", e => {
+  const type = e.target.closest('[data-abtipo]')?.dataset.abtipo, preset = e.target.closest('[data-abpreset]')?.dataset.abpreset;
+  if (preset) abTipos = preset === "all" ? "all" : null;
+  else if (type) {
+    const all = [...new Set([...MAIN_TIPOS, ...S.units.map(u => u.tipo).filter(Boolean)])];
+    const current = abTipos === "all" ? all : Array.isArray(abTipos) ? abTipos : MAIN_TIPOS;
+    abTipos = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+  } else return;
+  localStorage.setItem("cf_ab_tipos", JSON.stringify(abTipos)); renderAb();
+});
 function renderAb() {
-  const tipo = $("#fAbTipo").value, uf = $("#fAbUf").value, n = +$("#fAbAnos").value;
-  const m = openings(tipo, uf), years = abYears(m, n), el = $("#abContent");
-  if (!years.length) { el.innerHTML = `<div class="empty">Nenhuma unidade com data “desde” preenchida. Envie a planilha em Atualizações.</div>`; return; }
+  renderAbFilter();
+  const uf = $("#fAbUf").value, n = +$("#fAbAnos").value;
+  const m = openings("", uf, abSel), years = abYears(m, n), el = $("#abContent");
+  if (!years.length) { el.innerHTML = '<div class="empty">Nenhuma abertura encontrada para os tipos e a UF selecionados.</div>'; return; }
   const now = new Date(), cy = now.getFullYear(), cm = now.getMonth(), py = cy - 1;
-  const ytd = y => sum((m[y] || []).slice(0, cm + 1)), cell = (y, i) => (m[y] || [])[i] || 0;
-  const old = S.units.filter(u => isLive(u) && (!tipo || u.tipo === tipo) && (!uf || u.uf === uf) && /^\d{4}/.test(u.desde || "") && +u.desde.slice(0, 4) <= cy - 10).length;
-  const card = (t, big, sub) => `<div class="w"><h4>${t}</h4><div class="kpi"><div class="num">${big}</div><div class="sub">${sub}</div></div></div>`;
-  const hasCmp = years.includes(cy) && years.includes(py);
-  const head = `<tr><th>Mês</th>${years.map(y => `<th>${y}</th>`).join("")}${hasCmp ? `<th>${cy} × ${py}</th>` : ""}</tr>`;
-  const body = MESES.map((mes, i) => `<tr><td>${mes}</td>${years.map(y => {
-    if (y === cy && i > cm) return `<td class="z"></td>`;
-    const v = cell(y, i); return `<td class="${v ? "" : "z"}">${v || "·"}</td>`;
-  }).join("")}${hasCmp ? `<td>${i <= cm ? delta(cell(cy, i), cell(py, i)) : ""}</td>` : ""}</tr>`).join("");
-  const foot = `<tr><td>Total do ano</td>${years.map(y => `<td>${sum(m[y])}</td>`).join("")}${hasCmp ? `<td></td>` : ""}</tr>
-    ${years.includes(cy) ? `<tr><td>Até ${MESES[cm]} (mesmo período)</td>${years.map(y => `<td>${ytd(y)}</td>`).join("")}${hasCmp ? `<td>${delta(ytd(cy), ytd(py))}</td>` : ""}</tr>` : ""}`;
+  const ytd = y => sum((m[y] || []).slice(0, cm + 1)), cell = (y,i) => (m[y] || [])[i] || 0;
+  const old = S.units.filter(u => isLive(u) && abSel(u) && (!uf || u.uf === uf) && /^\d{4}/.test(u.desde || "") && +u.desde.slice(0,4) <= cy - 10).length;
+  const card = (t,big,sub) => `<div class="w"><h4>${t}</h4><div class="kpi"><div class="num">${big}</div><div class="sub">${sub}</div></div></div>`;
+  const ordered = [...years].reverse(), max = Math.max(...years.map(y => sum(m[y])),1);
+  const chart = ordered.map(y => `<div class="annual-bar ${y === cy ? "current" : ""}"><strong>${y}</strong><div class="annual-track"><span style="width:${sum(m[y]) / max * 100}%"></span></div><b>${sum(m[y])}</b></div>`).join("");
+  const head = `<tr><th scope="col">Ano</th>${MESES.map(m => `<th scope="col">${m}</th>`).join("")}<th scope="col">Total</th><th scope="col">Até ${MESES[cm]}</th><th scope="col">Variação*</th></tr>`;
+  const body = ordered.map(y => `<tr class="${y === cy ? "current" : ""}"><th scope="row">${y}</th>${MESES.map((_,i) => `<td>${y === cy && i > cm ? "—" : cell(y,i) || '<span class="muted">·</span>'}</td>`).join("")}<td><strong>${sum(m[y])}</strong></td><td>${ytd(y)}</td><td>${delta(ytd(y),ytd(y-1))}</td></tr>`).join("");
+  const missing = S.units.filter(u => abSel(u) && (!uf || u.uf === uf) && !/^\d{4}-\d{2}/.test(u.desde || "")).length;
   el.innerHTML = `<div class="ab-grid">
-      ${card(`${cy} até ${MESES[cm]}`, ytd(cy), `${ytd(py)} no mesmo período de ${py} · ${delta(ytd(cy), ytd(py))}`)}
-      ${card(`${MESES[cm]}/${cy} (mês em andamento)`, cell(cy, cm), `${cell(py, cm)} em ${MESES[cm]}/${py} · ${delta(cell(cy, cm), cell(py, cm))}`)}
-      ${card(`Total de ${py}`, sum(m[py]), `${sum(m[py - 1])} em ${py - 1} · ${delta(sum(m[py]), sum(m[py - 1]))}`)}
-      ${card("Ativas com 10+ anos", old, "abertas há dez anos ou mais")}
-    </div>
-    <div class="w" style="margin-bottom:16px"><h4>Aberturas por ano</h4>${colChart(years.map(y => ({ label: String(y), v: sum(m[y]), cur: y === cy })))}</div>
-    <div class="w"><h4>Comparativo mês × ano</h4><div class="tablewrap"><table class="cmp"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div>
-      <p class="muted" style="margin:10px 0 0">Conta todas as unidades da planilha que têm data “desde”, inclusive as que hoje estão fechadas (é o histórico de aberturas). Fechamentos ainda não entram: precisam da planilha de abertura/fechamento.</p></div>`;
+    ${card(`${cy} até ${MESES[cm]}`,ytd(cy),`${ytd(py)} no mesmo período de ${py} · ${delta(ytd(cy),ytd(py))}`)}
+    ${card(`${MESES[cm]}/${cy}`,cell(cy,cm),`${cell(py,cm)} no mesmo mês de ${py}`)}
+    ${card(`Total de ${py}`,sum(m[py]),`${sum(m[py-1])} em ${py-1}`)}
+    ${card("Ativas com 10+ anos",old,"unidades com uma década de operação")}
+    </div><div class="annual-layout"><div class="w annual-chart"><h4>Aberturas por ano</h4><p class="muted">Quantidade de unidades inauguradas</p><div class="annual-bars">${chart}</div></div>
+    <div class="w annual-context"><h4>Como ler esta visão</h4><p>Os botões de tipo e o filtro de UF atualizam os indicadores, o gráfico e a tabela.</p><p>O histórico inclui unidades que hoje estão fechadas. As datas vêm da coluna DESDE.</p><p class="muted">${missing} unidade(s) nos filtros sem data de abertura informada.</p></div></div>
+    <div class="w annual-comparison"><h4>Comparativo mensal</h4><p class="muted">Um ano por linha. * Variação até ${MESES[cm]} em relação ao mesmo período do ano anterior.</p><div class="tablewrap" tabindex="0" role="region" aria-label="Comparativo mensal de aberturas"><table class="cmp annual-table"><thead>${head}</thead><tbody>${body}</tbody></table></div></div>`;
 }
 
 /* ============ atualizacoes (planilha mensal) ============ */
@@ -502,7 +522,6 @@ function fillFilters() {
   fillSelect($("#fUnitTipo"), tipos, { first: "Todos os tipos", label: tipoLabel });
   fillSelect($("#fUnitConsultor"), [...new Set(S.units.map(u => u.consultor).filter(Boolean))].sort(), { first: "Todos consultores" });
   fillSelect($("#fAbUf"), ufs, { first: "Todas UFs" });
-  fillSelect($("#fAbTipo"), tipos, { first: "Todos os tipos", label: tipoLabel });
   $("#tiposList").innerHTML = [...new Set(["Franquia", "Hub", "Ponto de Coleta", ...S.units.map(u => u.tipo).filter(Boolean)])].map(t => `<option value="${esc(t)}">`).join("");
   $("#catsList").innerHTML = [...new Set([...DEFAULT_CATS, ...S.incidents.map(i => i.categoria)])].map(t => `<option value="${esc(t)}">`).join("");
 }
@@ -589,6 +608,7 @@ async function loadState(force) {
 
 /* ============ navegacao ============ */
 function show(view) {
+  if (view !== "pipeline" && typeof expandPipeline === "function") expandPipeline(false);
   currentView = view;
   $$("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   $$(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
@@ -815,7 +835,7 @@ $("#formImport").addEventListener("submit", async e => {
   } catch (err) { $("#errImport").textContent = err.message; }
 });
 ["fUnitQ", "fUnitUf", "fUnitTipo", "fUnitSaude", "fUnitConsultor", "fUnitSort"].forEach(id => $("#" + id).addEventListener("input", () => { unitLimit = 120; renderUnits(); }));
-["fAbTipo", "fAbUf", "fAbAnos"].forEach(id => $("#" + id).addEventListener("input", renderAb));
+["fAbUf", "fAbAnos"].forEach(id => $("#" + id).addEventListener("input", renderAb));
 $("#formUpload").addEventListener("submit", analyzeUpload);
 ["upFile", "upMonth"].forEach(id => $("#" + id).addEventListener("input", () => { pendingUpload = null; $("#btnCommit").hidden = true; $("#btnAnalyze").textContent = "Analisar"; }));
 ["fOcQ", "fOcSev"].forEach(id => $("#" + id).addEventListener("input", renderIncidents));

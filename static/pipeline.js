@@ -360,3 +360,14 @@ $("#formAbNew").addEventListener("submit", async e => {
     $("#dlgAbNew").close(); await load(true); openAb(r.id);
   } catch (err) { $("#errAbNew").textContent = err.message; }
 });
+
+function expandPipeline(expanded) {
+  $("#view-pipeline").classList.toggle("pipeline-expanded", expanded);
+  document.body.classList.toggle("pipeline-expanded-body", expanded);
+  $("#pipeExpand").textContent = expanded ? "Voltar à visão normal" : "Ampliar visão";
+  $("#pipeExpand").setAttribute("aria-pressed", String(expanded));
+}
+$("#pipeExpand").onclick = () => expandPipeline(!$("#view-pipeline").classList.contains("pipeline-expanded"));
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !document.querySelector("dialog[open]") && $("#view-pipeline").classList.contains("pipeline-expanded")) expandPipeline(false);
+});
