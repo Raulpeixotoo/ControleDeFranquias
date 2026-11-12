@@ -9,12 +9,49 @@ import os
 from pathlib import Path
 import sqlite3
 import tempfile
+import shlex
+import time
 from urllib.parse import urlsplit
 
 TABLES = ("units", "incidents", "log", "snapshots", "unit_changes", "pipe_fases", "pipe_tipos",
           "pipe_campos", "aberturas", "abertura_valores", "settings", "sol_categorias",
           "sol_subcategorias", "sol_etapas", "solicitacoes", "sol_hist", "master_users")
 BUSINESS_TABLES = ("units", "incidents", "log", "snapshots", "aberturas", "solicitacoes", "master_users")
+
+
+def normalize_url(value):
+    value = value.strip()
+    if value.startswith("psql "):
+        try:
+            value = next(p for p in shlex.split(value) if p.startswith(("postgresql://", "postgres://")))
+        except (ValueError, StopIteration):
+            raise ValueError("Copie a connection string completa do Neon, começando com postgresql://.") from None
+    value = value.strip("\"'")
+    parsed = urlsplit(value)
+    if parsed.scheme not in ("postgres", "postgresql") or not parsed.hostname:
+        raise ValueError("URL PostgreSQL inválida. Copie novamente pelo botão Connect do Neon.")
+    return value
+
+
+def connection_hint(error):
+    """Classifica internamente; nunca exibe a mensagem original com dados da conexão."""
+    text = str(error).lower()
+    code = getattr(error, "sqlstate", None)
+    if code == "28P01" or "password authentication failed" in text or "authentication failed" in text:
+        return "O Neon recusou a autenticação. Copie novamente a URL completa, com a senha atual, no botão Connect."
+    if code == "3D000" or ("database" in text and "does not exist" in text):
+        return "O banco informado não existe. Selecione o banco correto no Connect do Neon e copie novamente a URL."
+    if any(t in text for t in ("could not translate host", "failed to resolve", "getaddrinfo", "name or service not known")):
+        return "Não foi possível localizar o servidor (DNS). Confira a URL copiada e a disponibilidade da rede."
+    if any(t in text for t in ("channel binding", "certificate", "ssl", "tls")):
+        return "Falha na conexão segura. Copie a URL completa do Neon, mantendo sslmode=require e os demais parâmetros."
+    if any(t in text for t in ("connection refused", "actively refused")):
+        return "A conexão foi recusada. Confira o endereço, a porta e se o projeto está disponível no Neon."
+    if any(t in text for t in ("timeout", "timed out")):
+        return "O servidor não respondeu no prazo. Pode haver bloqueio de rede/porta, projeto indisponível ou demora na ativação. Confira o projeto no Neon e as restrições de acesso configuradas nele."
+    if code == "42501" or "permission denied" in text:
+        return "O usuário do banco não tem permissão para preparar ou preencher as tabelas. Selecione o proprietário do banco no Connect do Neon."
+    return "A conexão ou preparação do banco falhou. Confira o projeto e copie novamente a URL completa pelo Connect do Neon."
 
 
 def transfer(source, target):
@@ -61,19 +98,30 @@ def main():
     path = Path(args.sqlite).resolve()
     if not path.is_file():
         raise ValueError("Banco SQLite não encontrado.")
-    url = os.environ.get("DATABASE_URL", "").strip() or getpass.getpass("Cole a URL PostgreSQL do banco de TESTE no Neon (não aparece ao digitar): ").strip()
-    parsed = urlsplit(url)
-    if parsed.scheme not in ("postgres", "postgresql") or not parsed.hostname:
-        raise ValueError("URL PostgreSQL inválida.")
+    url = normalize_url(os.environ.get("DATABASE_URL", "").strip() or getpass.getpass("Cole a URL PostgreSQL do banco de TESTE no Neon (não aparece ao digitar): "))
     print("A cópia inclui unidades, solicitações, usuários, pipeline e configurações.")
     print("O banco local não será alterado. O destino precisa estar vazio.")
     if input("Digite MIGRAR para enviar os dados ao banco de teste: ").strip() != "MIGRAR":
         print("Cancelado.")
         return
     os.environ["DATABASE_URL"] = url
-    import app  # cria somente o esquema e as configurações iniciais do destino
     import psycopg
-    with tempfile.TemporaryDirectory(prefix="migracao-neon-") as tmp:
+    print("Conectando diretamente ao Neon; aguarde até 20 segundos por endereço...", flush=True)
+    start = time.perf_counter()
+    # Conexão direta do driver, sem fila/repetições do pool, preserva a causa real do erro.
+    with psycopg.connect(url, prepare_threshold=None, connect_timeout=20) as target, tempfile.TemporaryDirectory(prefix="migracao-neon-") as tmp:
+        print(f"Conexão estabelecida em {time.perf_counter() - start:.1f} s. Preparando o banco...", flush=True)
+        previous = os.environ.get("FRANQUIAS_SKIP_INIT")
+        os.environ["FRANQUIAS_SKIP_INIT"] = "1"
+        try:
+            import app
+        finally:
+            if previous is None:
+                os.environ.pop("FRANQUIAS_SKIP_INIT", None)
+            else:
+                os.environ["FRANQUIAS_SKIP_INIT"] = previous
+        import database
+        app.init_db(database.PostgresConnection(target, None), close_connection=False)
         snapshot = Path(tmp) / "snapshot.db"
         original = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
         local = sqlite3.connect(snapshot)
@@ -81,8 +129,8 @@ def main():
             original.backup(local)
             if local.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                 raise ValueError("Falha de integridade no SQLite.")
-            with psycopg.connect(url, prepare_threshold=None, connect_timeout=10) as target:
-                counts = transfer(local, target)
+            print("Copiando e conferindo os registros...", flush=True)
+            counts = transfer(local, target)
         finally:
             original.close()
             local.close()
@@ -99,5 +147,5 @@ if __name__ == "__main__":
         if isinstance(exc, ValueError):
             print("Não foi possível migrar:", exc)
         else:
-            print("Não foi possível migrar (" + type(exc).__name__ + "). Confira a conexão e use um banco de teste vazio.")
+            print("Não foi possível migrar (" + type(exc).__name__ + "). " + connection_hint(exc))
         raise SystemExit(1)

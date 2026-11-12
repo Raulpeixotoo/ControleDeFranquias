@@ -72,14 +72,15 @@ def close_db(_exc):
         conn.close()
 
 
-def init_db():
-    conn = database.connect(DB_PATH)
+def init_db(conn=None, close_connection=True):
+    conn = conn if conn is not None else database.connect(DB_PATH)
     if database.postgres_enabled():
         conn.execute("SELECT pg_advisory_xact_lock(19482631)")
         exists = conn.execute("SELECT to_regclass('public.settings')").fetchone()[0]
         if exists and conn.execute("SELECT 1 FROM settings WHERE chave='cloud_schema_version' AND valor='1'").fetchone():
             conn.commit()
-            conn.close()
+            if close_connection:
+                conn.close()
             return
     conn.executescript(
         """
@@ -237,7 +238,8 @@ def init_db():
     if database.postgres_enabled():
         conn.execute("INSERT INTO settings (chave,valor) VALUES ('cloud_schema_version','1') ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor")
     conn.commit()
-    conn.close()
+    if close_connection:
+        conn.close()
 
 
 def now():
@@ -1339,7 +1341,8 @@ if database.postgres_enabled():
         app.register_error_handler(error_type, database_unavailable)
 
 masters.register(app, db, now, who, log)
-init_db()
+if os.environ.get("FRANQUIAS_SKIP_INIT") != "1":
+    init_db()
 if "--demo" in sys.argv:
     seed_demo()
 

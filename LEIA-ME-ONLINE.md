@@ -20,6 +20,8 @@ Execute `migrar_para_neon.bat` na pasta original do projeto, onde está `franqui
 3. Ele cria o esquema, copia os registros preservando IDs e vínculos e confere as contagens.
 4. O SQLite local fica intacto. O programa recusa destino com dados e faz a cópia em uma transação.
 
+Se falhar na conexão, o programa mostra um diagnóstico sem exibir credenciais: DNS, autenticação, conexão segura, recusa ou demora na resposta. A migração usa uma única conexão direta do driver em vez de esconder a causa em um `PoolTimeout`. Isso não exige desativar o Connection pooling no painel do Neon.
+
 São copiados unidades, solicitações, usuários, ocorrências com fotos, pipeline, configurações e históricos.
 As planilhas originais de upload não são copiadas; os dados já importados estão no banco.
 Uma segunda execução contra o mesmo destino é bloqueada para não duplicar ou sobrescrever registros.
