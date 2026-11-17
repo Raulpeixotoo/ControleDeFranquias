@@ -2,10 +2,8 @@ $("#mastersImport").onclick = () => $("#mastersFile").click();
 let mastersPage = 1, mastersData = [], mastersRequest = 0, mastersTimer;
 async function loadMasters() {
   const requestId = ++mastersRequest;
-  const params = new URLSearchParams({ page: mastersPage, q: $("#mastersQ").value,
-    perfil: $("#mastersPerfil").value, enabled: $("#mastersEnabled").value,
-    segundo_fator: $("#mastersSegundo").value, vinculo: $("#mastersVinculo").value,
-    pendentes: $("#mastersPendentes").checked ? "1" : "" });
+  const params = mastersFilters();
+  params.set("page", mastersPage);
   $("#mastersMessage").textContent = "Carregando usuários…";
   try {
     const data = await api("/masters?" + params);
@@ -17,7 +15,7 @@ async function loadMasters() {
       .map(([n,t], index) => `<div class="sum ${index === 2 ? "masters-stat-alert" : ""}"><span>${t}</span><b>${n.toLocaleString("pt-BR")}</b></div>`).join("");
     $("#mastersRows").innerHTML = data.items.map(i => `<tr>
       <td data-label="Usuário / matrícula"><strong>${esc(i.nome)}</strong><div class="muted">${esc(i.matricula)}</div></td>
-      <td data-label="Perfil"><span class="masters-profile">${esc(i.perfil)}</span></td><td data-label="Ponto / unidade ativa">${esc(i.ponto)}<div>${i.unidades.length ? i.unidades.map(u => `<button class="btn sm ghost" data-edit-unit="${u.id}">${esc(u.nome)} · ${esc(u.uf)}</button>`).join("") : '<span class="muted">Sem unidade ativa</span>'}</div>${i.vinculo === "ambiguo" ? '<span class="badge b-alta">Conferir vínculo: ponto repetido</span>' : ""}</td>
+      <td data-label="Perfil"><span class="masters-profile">${esc(i.perfil)}</span></td><td data-label="Ponto / unidade ativa">${esc(i.ponto)}<div>${i.unidades.length ? i.unidades.map(u => `<button class="btn sm ghost" data-view-unit="${u.id}">${esc(u.nome)} · ${esc(u.uf)}</button>`).join("") : '<span class="muted">Sem unidade ativa</span>'}</div>${i.vinculo === "ambiguo" ? '<span class="badge b-alta">Conferir vínculo: ponto repetido</span>' : ""}</td>
       <td data-label="Usuário"><span class="badge ${i.enabled ? "b-ok" : "b-alta"}">${i.enabled ? "Ativo" : "Inativo"}</span></td>
       <td data-label="Segundo fator"><span class="badge ${i.segundo_fator === "S" ? "b-ok" : "b-none"}">${i.segundo_fator === "S" ? "Ativo" : "Inativo"}</span></td>
       <td data-label="Pendência">${i.pendencia_master ? '<span class="badge b-critica">Ativar segundo fator</span>' : "—"}</td>
@@ -107,3 +105,24 @@ $("#mastersNew").onclick = () => {
   };
   dialog.showModal();
 };
+
+function mastersFilters() {
+  return new URLSearchParams({ q: $("#mastersQ").value, unidade: $("#mastersUnit").value,
+    perfil: $("#mastersPerfil").value, enabled: $("#mastersEnabled").value,
+    segundo_fator: $("#mastersSegundo").value, vinculo: $("#mastersVinculo").value,
+    pendentes: $("#mastersPendentes").checked ? "1" : "" });
+}
+
+async function exportMasters(filtered, button) {
+  button.disabled = true;
+  try {
+    const response = await fetch("/api/masters/export?" + (filtered ? mastersFilters() : ""), {headers: {"X-User": encodeURIComponent(user), "X-Access-Code": code}});
+    if (!response.ok) throw new Error("Não foi possível exportar os usuários. Tente novamente.");
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a"); link.href = url; link.download = filtered ? "usuarios-filtrados.xlsx" : "usuarios-todos.xlsx";
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) { toast(esc(err.message)); }
+  finally { button.disabled = false; }
+}
+$("#mastersExportFiltered").onclick = e => exportMasters(true, e.currentTarget);
+$("#mastersExportAll").onclick = e => exportMasters(false, e.currentTarget);

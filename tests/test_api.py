@@ -182,6 +182,33 @@ class Fluxo(unittest.TestCase):
         self.assertEqual(self.c.get(f"/api/units/{uid}").get_json()["razao_social"], "Empresa Teste LTDA")
         self.assertEqual(self.c.post("/api/units", json={"nome": "X", "uf": "SP", "desde": "01/11/2026"}).status_code, 400)
 
+    def test_15_sol_responsavel_ranking_details_export(self):
+        import io
+        from openpyxl import load_workbook
+        st = self.state()
+        cat = st["sol"]["categorias"][0]["id"]
+        uid = self.c.post("/api/units", json={"nome":"Ranking test unit", "uf":"SP"}).get_json()["id"]
+        ids = []
+        for resp in ["Pessoa A", "Pessoa B", ""]:
+            response = self.c.post("/api/sol", json={"titulo":"Export test " + resp, "categoria_id":cat, "unidade_id":uid, "responsavel":resp, "prioridade":"alta"})
+            self.assertEqual(response.status_code, 201)
+            ids.append(response.get_json()["id"])
+        final = next(e["id"] for e in st["sol"]["etapas"] if e["final"])
+        self.c.put(f"/api/sol/{ids[0]}/etapa", json={"etapa_id":final})
+        rank = self.c.get("/api/sol/ranking?dias=0&resp=Pessoa+A&pri=alta").get_json()
+        row = next(r for r in rank["rows"] if r["id"] == uid)
+        self.assertEqual((row["tot"], row["ab"]), (1,0))
+        items = self.c.get(f"/api/sol/unidade/{uid}?resp=Pessoa+A&pri=alta").get_json()["items"]
+        self.assertEqual([r["id"] for r in items], [ids[0]])
+        self.assertEqual(len(self.c.get(f"/api/sol/unidade/{uid}?resp=__none").get_json()["items"]),1)
+        response = self.c.get("/api/sol/finalizadas/export?dias=0&resp=Pessoa+A&pri=alta&q=Export+test")
+        self.assertEqual(response.status_code, 200)
+        sheet = load_workbook(io.BytesIO(response.data)).active
+        self.assertEqual(sheet.max_row,2)
+        self.assertEqual(sheet["H2"].value,"Pessoa A")
+        self.assertEqual(load_workbook(io.BytesIO(self.c.get("/api/sol/finalizadas/export?resp=Pessoa+B").data)).active.max_row,1)
+        self.assertIn("Pessoa B", self.state()["sol"]["responsaveis"])
+
     def test_13_ocorrencia_foto_opcional(self):
         foto = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="
         uid = self.c.post("/api/units", json={"nome": "Unidade foto", "uf": "SP"}).get_json()["id"]

@@ -52,6 +52,23 @@ await send("Page.navigate", { url }); await sleep(1000);
 await ev(`localStorage.clear(); localStorage.setItem('cf_user','Teste Smoke')`);
 await send("Page.navigate", { url }); await waitFor(`document.querySelectorAll('#dash .w').length > 0`, 8000);
 
+await step("responsive sidebar", async () => {
+  await send("Input.dispatchMouseEvent", {type: "mouseMoved", x: 700, y: 120});
+  await sleep(300);
+  check("sidebar starts compact", await ev(`document.querySelector('.side').getBoundingClientRect().width === 72`));
+  const before = await ev(`document.querySelector('.stage').getBoundingClientRect().left`);
+  await send("Input.dispatchMouseEvent", {type: "mouseMoved", x: 30, y: 160});
+  await sleep(300);
+  check("hover expands sidebar", await ev(`document.querySelector('.side').getBoundingClientRect().width === 264`));
+  check("hover leaves page position unchanged", before === await ev(`document.querySelector('.stage').getBoundingClientRect().left`));
+  await send("Input.dispatchMouseEvent", {type: "mouseMoved", x: 700, y: 120});
+  await sleep(300);
+  check("leaving sidebar collapses it", await ev(`document.querySelector('.side').getBoundingClientRect().width === 72`));
+  await ev(`document.querySelector('#tabs button').focus()`);
+  check("keyboard focus exposes navigation labels", await waitFor(`document.querySelector('.side').getBoundingClientRect().width === 264`));
+  await ev(`document.activeElement.blur()`);
+});
+
 await step("painel", async () => {
   check("marca do site é Franchising - Team", (await ev(`document.querySelector('.brand strong').textContent`)).includes("Franchising - Team"));
   check("título da aba é Franchising - Team", (await ev("document.title")).includes("Franchising - Team"));
@@ -63,6 +80,43 @@ await step("painel", async () => {
   check("painel mostra descrição e botão remover nas ocorrências", await ev(`!!document.querySelector('[data-w="urgentes"] .oc .d') && !!document.querySelector('[data-w="urgentes"] [data-remove-oc]')`));
   check("contador do painel mostra publicações sem andamento", await ev(`document.querySelector('[data-w="kpi_abertas"]').innerText.includes('ocorrências publicadas') && !document.querySelector('[data-w="kpi_abertas"]').innerText.includes('em andamento')`));
   await shot("painel");
+});
+
+await step("dashboard type filters", async () => {
+  await ev(`document.querySelector('[data-dpreset="none"]').click()`);
+  check("clear deselects every dashboard type", await ev(`document.querySelectorAll('#dashFilter [aria-pressed="true"]').length === 0 && dashUnits().length === 0`));
+  await ev(`document.querySelector('#dashFilter [data-dtipo="HB"]').click()`);
+  check("one type can be selected after clearing", await ev(`document.querySelectorAll('#dashFilter [aria-pressed="true"]').length === 1 && dashTipos[0] === 'HB'`));
+  await ev(`document.querySelector('#dashFilter [data-dtipo="HB"]').click()`);
+  check("removing last type keeps empty selection", await ev(`Array.isArray(dashTipos) && dashTipos.length === 0 && JSON.parse(localStorage.getItem('cf_dash_tipos')).length === 0`));
+  await ev(`document.querySelector('[data-dpreset="all"]').click()`);
+  check("all preset selects every type", await ev(`document.querySelectorAll('#dashFilter [aria-pressed="false"]').length === 0`));
+  await ev(`document.querySelector('[data-dpreset="main"]').click()`);
+});
+
+await step("heat map type filters", async () => {
+  await ev(`window.heatLayout=layout;layout=[{id:'mapa',span:2}];renderDash()`);
+  for (const types of [['CO'], ['CO','LJ'], [], 'all']) {
+    const ok = await ev(`(()=>{setDashTipos(${JSON.stringify(types)});show('painel');const tile=document.querySelector('#dash [data-uf="SP"]');tile.click();const expected=S.units.filter(u=>u.uf==='SP'&&isLive(u)&&dashSel(u));return document.querySelector('#fUnitUf').value==='SP' && document.querySelector('#fUnitSaude').value==='viva' && document.querySelectorAll('#units article').length===Math.min(120,expected.length);})()`);
+    check(`heat map carries selected types ${JSON.stringify(types)}`, ok);
+    check("type selector exposes map selection", await ev(`document.querySelector('#fUnitTipo').value === ${JSON.stringify(types === 'all' ? '' : types.length === 1 ? types[0] : '__painel')}`));
+    await nav('painel');
+  }
+  await ev(`layout=window.heatLayout;delete window.heatLayout;unitDashboardTypes=null;fillFilters();document.querySelector('#fUnitTipo').value='';document.querySelector('#fUnitUf').value='';document.querySelector('#fUnitSaude').value='';setDashTipos(null);renderUnits()`);
+});
+
+await step("dashboard packing", async () => {
+  await ev(`window.savedDashLayout=layout; layout=[{id:'por_uf',span:2},{id:'por_tipo',span:1},{id:'por_categoria',span:1},{id:'saude',span:1}];renderDash()`);
+  await sleep(350);
+  check("short cards fill space beside tall map", await ev(`(()=>{const map=document.querySelector('[data-w="por_uf"]').getBoundingClientRect(), small=document.querySelector('[data-w="saude"]').getBoundingClientRect();return small.top < map.bottom && small.left >= map.right;})()`));
+  for (const width of [390, 768, 1366]) {
+    await send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
+    await sleep(350);
+    check(`dashboard cards do not overlap at ${width}px`, await ev(`(()=>{const r=[...document.querySelectorAll('#dash > .w')].map(e=>e.getBoundingClientRect());return r.every((a,i)=>r.slice(i+1).every(b=>a.right<=b.left+1||b.right<=a.left+1||a.bottom<=b.top+1||b.bottom<=a.top+1)) && document.documentElement.scrollWidth<=innerWidth;})()`));
+  }
+  await send('Emulation.clearDeviceMetricsOverride');
+  await ev(`layout=window.savedDashLayout;delete window.savedDashLayout;renderDash()`);
+  await sleep(300);
 });
 
 await step("recuperação de falhas de leitura", async () => {
@@ -95,6 +149,7 @@ await step("recuperação de falhas de leitura", async () => {
 await step("usuários das unidades", async () => {
   check("página de usuários abre", await nav("masters"));
   check("usuários carregam", await waitFor(`document.querySelectorAll('#mastersRows tr').length > 0`));
+  check("user export offers filtered and all", await ev(`!!document.querySelector('#mastersExportFiltered') && !!document.querySelector('#mastersExportAll')`));
   check("busca de usuários mantém altura de campo", await ev(`document.querySelector('#mastersQ').getBoundingClientRect().height <= 48`));
   check("master sem segundo fator aparece sinalizado", await ev(`document.querySelector('#mastersRows').innerText.includes('Ativar segundo fator')`));
   for (const width of [390, 768]) {
@@ -104,7 +159,11 @@ await step("usuários das unidades", async () => {
     check(`ações de usuários acessíveis em ${width}px`, await visible('#mastersRows [data-master-edit]'));
   }
   await send("Emulation.clearDeviceMetricsOverride");
-  check("usuário vinculado tem acesso à ficha da unidade", await ev(`!!document.querySelector('#mastersRows [data-edit-unit]')`));
+  check("usuário vinculado tem acesso à ficha da unidade", await ev(`!!document.querySelector('#mastersRows [data-view-unit]')`));
+  await ev(`document.querySelector('#mastersRows [data-view-unit]').click()`);
+  check("unit link opens units tab without editing", await waitFor(`document.querySelector('#view-unidades').classList.contains('active') && !document.querySelector('#dlgUnit').open && document.querySelector('#fUnitQ').value.length > 0`));
+  await ev(`document.querySelector('#fUnitQ').value='';renderUnits()`);
+  await nav('masters');
   await ev(`document.querySelector('#mastersPendentes').checked=true; document.querySelector('#mastersPendentes').dispatchEvent(new Event('input',{bubbles:true}))`);
   check("filtro de pendências mostra só master sem segundo fator", await waitFor(`document.querySelectorAll('#mastersRows tr').length === 1 && document.querySelector('#mastersRows').innerText.includes('Master')`));
   await ev(`document.querySelector('#mastersRows [data-master-edit]').click()`);
@@ -131,6 +190,8 @@ await step("unidades", async () => {
   check("ficha lista as solicitações da unidade", await waitFor(`!document.getElementById('unitSolsBox').hidden && document.querySelectorAll('#unitSols .item').length >= 1`));
   await shot("unidades-ficha");
   await ev(`document.querySelector('#dlgUnit [data-close]').click()`);
+  await ev(`(()=>{const old=window.confirm;window.confirm=()=>true;document.querySelector('#units [data-inactivate-unit]').click();window.confirm=old})()`);
+  check("inactivate button saves unit status", await waitFor(`S.units.some(u => u.situacao === 'inativa')`));
   check("diálogo de importação abre", await dialog(`document.querySelector('#btnImport').click()`, "dlgImport"));
   await shot("unidades");
 });
@@ -199,14 +260,27 @@ await step("solicitações", async () => {
   await ev(`document.querySelector('.fc[data-ab]').click()`); await waitFor(`document.getElementById('dlgAb').open`);
   await ev(`document.querySelector('#btnAbToUnit').click()`); await waitFor(`document.getElementById('dlgUnit').open`);
   check("enviar candidato às ativas abre o formulário de unidade já preenchido", await waitFor(`document.querySelector('#formUnit [name=nome]').value.length > 0 && !document.querySelector('#formUnit').dataset.id && document.querySelector('#formUnit').dataset.ab && document.querySelector('#formUnit [name=desde]').value`));
+  await ev(`document.querySelector('#formUnit [name=razao_social]').click()`);
+  check("unit fields do not reopen candidate dialog", await ev(`document.querySelector('#dlgUnit').open && !document.querySelector('#dlgAb').open`));
   await ev(`document.querySelector('#formUnit [name=razao_social]').value='Empresa Smoke'; document.querySelector('#formUnit button[type=submit]').click()`);
-  check("unidade criada a partir do candidato aparece como enviada", await waitFor(`!document.getElementById('dlgUnit').open && [...document.querySelectorAll('.fc .badge')].some(b => b.textContent.includes('Nas unidades ativas'))`));
+  check("sent candidate leaves new franchises", await waitFor(`!document.getElementById('dlgUnit').open && ![...document.querySelectorAll('.fc .badge')].some(b => b.textContent.includes('Nas unidades ativas'))`));
+  await ev(`document.querySelector('#fPipeSit').value='enviada'; document.querySelector('#fPipeSit').dispatchEvent(new Event('input',{bubbles:true}))`);
+  check("sent candidate history remains available", await waitFor(`[...document.querySelectorAll('.fc .badge')].some(b => b.textContent.includes('Nas unidades ativas'))`));
   const iso = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
   await ev(`document.querySelector('#btnSolNew').click()`); await waitFor(`document.getElementById('dlgSol').open`);
   await ev(`(()=>{document.querySelector('#sTitulo').value='Chamado antigo do smoke'; document.querySelector('#sCriado').value='${iso(20)}'; document.querySelector('#sFinal').value='${iso(13)}'; document.querySelector('#formSol button[type=submit]').click()})()`);
   check("chamado antigo (datas de abertura e finalização) entra na lista com 7 dias", await waitFor(`[...document.querySelectorAll('#solList tbody tr')].some(r => r.innerText.includes('Chamado antigo do smoke') && r.children[8].textContent.trim() === '7')`));
   await ev(`document.querySelector('#solMode [data-smode="ranking"]').click()`);
   check("ranking por unidade", await waitFor(`document.querySelectorAll('#solRank tbody tr').length >= 1`)); await shot("solicitacoes-ranking");
+  check("ranking has summary cards and charts", await waitFor(`document.querySelectorAll('.sol-rank-stats .sum').length === 4 && document.querySelectorAll('.sol-rank-charts .w').length === 2`));
+  await ev(`document.querySelector('.sol-rank-detail').open=true`);
+  check("expanding unit loads requests", await waitFor(`document.querySelectorAll('.sol-rank-items [data-sol]').length > 0`));
+  check("ranking expansion does not edit unit", await ev(`!document.querySelector('#dlgUnit').open`));
+  await ev(`document.querySelector('#solMode [data-smode="lista"]').click()`);
+  await nav("solicitacoes");
+  check("finalized export action is visible", await visible('#btnSolExport'));
+  await ev(`document.querySelector('#solMode [data-smode="ranking"]').click()`);
+
   await ev(`document.querySelector('#solMode [data-smode="kanban"]').click()`);
   check("configurar solicitações abre", await dialog(`document.querySelector('#btnSolCfg').click()`, "dlgSolCfg"));
 });

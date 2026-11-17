@@ -5,8 +5,8 @@ import re
 import sqlite3
 from collections import Counter, defaultdict
 
-from flask import jsonify, request
-from openpyxl import load_workbook
+from flask import jsonify, request, send_file
+from openpyxl import load_workbook, Workbook
 
 
 def point(value):
@@ -114,6 +114,7 @@ def register(app, db, now, who, log):
         db().commit()
         return jsonify(ok=True)
 
+    @app.get("/api/masters/export")
     @app.get("/api/masters")
     def listing():
         conn = db()
@@ -135,17 +136,48 @@ def register(app, db, now, who, log):
                        masters_pendentes=sum(i["pendencia_master"] for i in rows),
                        inativos=sum(not i["enabled"] for i in rows), **counts)
         q = request.args.get("q", "").strip().casefold()
+        unidade = request.args.get("unidade", "").strip().casefold()
+        unidade_point = point(unidade) if unidade.isdigit() else unidade
         vinculo = request.args.get("vinculo", "")
         enabled = request.args.get("enabled", "")
         segundo = request.args.get("segundo_fator", "")
         perfil = request.args.get("perfil", "")
         pendentes = request.args.get("pendentes", "") == "1"
         rows = [i for i in rows if (not vinculo or i["vinculo"] == vinculo)
+                and (not unidade or unidade_point in point(i["ponto"]).casefold()
+                     or any(unidade in u["nome"].casefold() for u in i["unidades"]))
                 and (not perfil or i["fator_autenticacao"] == perfil)
                 and (not pendentes or i["pendencia_master"])
                 and (not enabled or str(i["enabled"]) == enabled)
                 and (not segundo or i["segundo_fator"] == segundo)
                 and (not q or q in " ".join([i["nome"], i["matricula"], i["ponto"], *[u["nome"] for u in i["unidades"]]]).casefold())]
+        if request.path.endswith("/export"):
+            book = Workbook()
+            sheet = book.active
+            sheet.title = "Usuários das unidades"
+            sheet.append(["Nome", "Matrícula", "Ponto", "Perfil", "Situação", "Segundo fator",
+                          "Pendência master", "Vínculo", "Unidades ativas", "UF", "Atualizado em", "Atualizado por"])
+            for item in rows:
+                sheet.append([item["nome"], item["matricula"], item["ponto"], item["perfil"],
+                              "Ativo" if item["enabled"] else "Inativo",
+                              "Ativo" if item["segundo_fator"] == "S" else "Inativo",
+                              "Ativar segundo fator" if item["pendencia_master"] else "",
+                              {"vinculado": "Vinculado", "ambiguo": "Ponto repetido", "sem_unidade": "Sem unidade ativa"}[item["vinculo"]],
+                              " / ".join(u["nome"] for u in item["unidades"]),
+                              " / ".join(u["uf"] for u in item["unidades"]), item["updated_at"], item["updated_by"]])
+                for cell in sheet[sheet.max_row]:
+                    if isinstance(cell.value, str):
+                        cell.data_type = "s"
+            sheet.freeze_panes = "A2"
+            sheet.auto_filter.ref = sheet.dimensions
+            from openpyxl.utils import get_column_letter
+            for col in range(1, 13):
+                sheet.column_dimensions[get_column_letter(col)].width = 28 if col != 1 else 40
+            output = io.BytesIO()
+            book.save(output)
+            output.seek(0)
+            return send_file(output, as_attachment=True, download_name="usuarios-unidades.xlsx",
+                             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         try:
             page = max(1, int(request.args.get("page", 1)))
         except ValueError:

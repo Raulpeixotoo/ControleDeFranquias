@@ -45,22 +45,22 @@
   </div>
   <nav id="tabs" aria-label="Seções do site">
     <div class="nav-group"><span class="nav-title">Visão geral</span>
-      <button data-view="painel" class="active"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> Painel</button></div>
+      <button data-view="painel" class="active" aria-label="Painel" title="Painel"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> <span class="nav-label">Painel</span></button></div>
     <div class="nav-group"><span class="nav-title">Rede</span>
-      <button data-view="unidades"><svg class="i" aria-hidden="true"><use href="#i-building"/></svg> Unidades</button>
-      <button data-view="masters"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> Usuários das unidades</button>
-      <button data-view="aberturas"><svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg> Aberturas por ano</button>
-      <button data-view="atualizacoes"><svg class="i" aria-hidden="true"><use href="#i-sheet"/></svg> Atualizações da planilha</button></div>
+      <button data-view="unidades" aria-label="Unidades" title="Unidades"><svg class="i" aria-hidden="true"><use href="#i-building"/></svg> <span class="nav-label">Unidades</span></button>
+      <button data-view="masters" aria-label="Usuários das unidades" title="Usuários das unidades"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> <span class="nav-label">Usuários das unidades</span></button>
+      <button data-view="aberturas" aria-label="Aberturas por ano" title="Aberturas por ano"><svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg> <span class="nav-label">Aberturas por ano</span></button>
+      <button data-view="atualizacoes" aria-label="Atualizações da planilha" title="Atualizações da planilha"><svg class="i" aria-hidden="true"><use href="#i-sheet"/></svg> <span class="nav-label">Atualizações da planilha</span></button></div>
     <div class="nav-group"><span class="nav-title">Expansão</span>
-      <button data-view="pipeline"><svg class="i" aria-hidden="true"><use href="#i-store"/></svg> Novas franquias</button></div>
+      <button data-view="pipeline" aria-label="Novas franquias" title="Novas franquias"><svg class="i" aria-hidden="true"><use href="#i-store"/></svg> <span class="nav-label">Novas franquias</span></button></div>
     <div class="nav-group"><span class="nav-title">Atendimento</span>
-      <button data-view="solicitacoes"><svg class="i" aria-hidden="true"><use href="#i-message"/></svg> Solicitações <span class="pill neutral" id="badgeSol">0</span></button>
-      <button data-view="ocorrencias"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg> Ocorrências <span class="pill" id="badgeOc">0</span></button></div>
+      <button data-view="solicitacoes" aria-label="Solicitações" title="Solicitações"><svg class="i" aria-hidden="true"><use href="#i-message"/></svg> <span class="nav-label">Solicitações</span><span class="pill neutral" id="badgeSol">0</span></button>
+      <button data-view="ocorrencias" aria-label="Ocorrências" title="Ocorrências"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg> <span class="nav-label">Ocorrências</span><span class="pill" id="badgeOc">0</span></button></div>
     <div class="nav-group"><span class="nav-title">Sistema</span>
-      <button data-view="atividade"><svg class="i" aria-hidden="true"><use href="#i-activity"/></svg> Atividade</button></div>
+      <button data-view="atividade" aria-label="Atividade" title="Atividade"><svg class="i" aria-hidden="true"><use href="#i-activity"/></svg> <span class="nav-label">Atividade</span></button></div>
   </nav>
   <div class="side-foot">
-    <button class="btn ghost" id="btnTheme" title="Alternar tema claro/escuro"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg> Tema</button>
+    <button class="btn ghost" id="btnTheme" aria-label="Alternar tema" title="Alternar tema claro/escuro"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg> <span class="nav-label">Tema</span></button>
     <button class="btn ghost" id="btnUser" title="Trocar nome"></button>
   </div>
 </aside>
@@ -115,6 +115,7 @@
 
   <section id="view-masters" class="view">
     <header class="page-head"><div><span class="masters-eyebrow">Gestão de acessos</span><h2>Usuários das unidades</h2></div><div class="page-actions">
+      <button class="btn" id="mastersExportFiltered">Exportar filtro</button><button class="btn" id="mastersExportAll">Exportar todos</button>
       <button class="btn" id="mastersImport">Atualizar planilha</button><input type="file" id="mastersFile" accept=".csv,.xlsx,.xlsm" hidden>
       <button class="btn primary" id="mastersNew">Novo usuário</button>
     </div></header>
@@ -122,6 +123,7 @@
     <div id="mastersSummary" class="sumgrid"></div>
     <div class="filters" id="mastersFilters">
       <label class="masters-field"><span>Buscar usuário</span><input type="search" id="mastersQ" aria-label="Buscar usuários" placeholder="Nome, matrícula, ponto ou unidade"></label>
+      <label class="masters-field"><span>Unidade / ponto</span><input type="search" id="mastersUnit" aria-label="Filtrar por unidade ou ponto" placeholder="Nome da unidade ou número do ponto"></label>
       <label class="masters-field"><span>Perfil de acesso</span><select id="mastersPerfil" aria-label="Perfil"><option value="">Todos os perfis</option><option value="2">Master</option><option value="1">Operacional</option><option value="3">Código 3</option><option value="4">Código 4</option></select></label>
       <label class="masters-field"><span>Situação do usuário</span><select id="mastersEnabled" aria-label="Situação do usuário"><option value="">Ativos e inativos</option><option value="1">Ativos</option><option value="0">Inativos</option></select></label>
       <label class="masters-field"><span>Segundo fator</span><select id="mastersSegundo" aria-label="Segundo fator"><option value="">Segundo fator: todos</option><option value="S">Ativo</option><option value="N">Inativo</option></select></label>
@@ -178,7 +180,7 @@
         <option value="bloq">Com bloqueio</option>
         <option value="parada">Paradas</option>
         <option value="standby">Stand-by</option>
-        <option value="concluida">Concluídas</option>
+        <option value="enviada">Enviadas para unidades</option><option value="concluida">Concluídas</option>
         <option value="descartada">Tudo “n/a”</option>
         <option value="saiu">Saíram da planilha</option>
       </select>
@@ -207,12 +209,15 @@
     </header>
     <div class="filters-bar">
       <div class="seg" id="solMode"><button data-smode="kanban"><svg class="i" aria-hidden="true"><use href="#i-kanban"/></svg> Abertas</button><button data-smode="lista"><svg class="i" aria-hidden="true"><use href="#i-table"/></svg> Finalizadas</button><button data-smode="ranking"><svg class="i" aria-hidden="true"><use href="#i-bars"/></svg> Ranking por unidade</button></div>
+      <button class="btn" id="btnSolExport" hidden>Exportar finalizadas (Excel)</button>
       <select id="fSolPer" hidden><option value="30">Últimos 30 dias</option><option value="90" selected>Últimos 90 dias</option><option value="365">Último ano</option><option value="0">Todas</option></select>
     </div>
-    <div class="filters">
-      <input type="search" id="fSolQ" placeholder="Buscar título, Jira, unidade…">
-      <select id="fSolCat"></select><select id="fSolSub"></select><select id="fSolResp"></select>
-      <select id="fSolPri"><option value="">Qualquer prioridade</option><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select>
+    <div class="filters sol-filters">
+      <label>Buscar solicitação<input type="search" id="fSolQ" placeholder="Título, Jira ou unidade"></label>
+      <label>Categoria<select id="fSolCat"></select></label>
+      <label>Subcategoria<select id="fSolSub"></select></label>
+      <label>Responsável<select id="fSolResp"></select></label>
+      <label>Prioridade<select id="fSolPri"><option value="">Qualquer prioridade</option><option value="urgente">Urgente</option><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select></label>
     </div>
     <div id="solSummary" class="summary"></div>
     <div id="solBoard" class="kb"></div>

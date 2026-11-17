@@ -229,7 +229,9 @@ def init_db(conn=None, close_connection=True):
             conn.execute("INSERT INTO sol_etapas (nome,ordem,final) VALUES (?,?,?)", (nome, i, fin))
         conn.execute("INSERT INTO settings (chave,valor) VALUES ('sol_seeded','1')")
     masters.init(conn)
-    source = os.path.join(BASE, "usuarios fraction (2).csv")
+    source = os.path.join(BASE, "dados", "planilhas", "usuarios fraction (2).csv")
+    if not os.path.isfile(source):
+        source = os.path.join(BASE, "usuarios fraction (2).csv")  # compatibilidade com cópias antigas
     if not database.postgres_enabled() and not os.environ.get("FRANQUIAS_DB") and os.path.isfile(source) and not conn.execute("SELECT 1 FROM settings WHERE chave='masters_seeded'").fetchone():
         with open(source, "rb") as file:
             rows = masters.parse(file.read())
@@ -555,6 +557,18 @@ def update_unit(uid):
     _set_unit_extras(uid, p["extras"])
     log("unidade editada", f'{p["nome"]} ({p["uf"]})')
     db().commit()
+    return jsonify(ok=True)
+
+
+@app.post("/api/units/<int:uid>/inactivate")
+def inactivate_unit(uid):
+    row = db().execute("SELECT nome,situacao FROM units WHERE id=?", (uid,)).fetchone()
+    if not row:
+        return jsonify(error="unidade não encontrada"), 404
+    if row["situacao"] != "inativa":
+        db().execute("UPDATE units SET situacao='inativa',updated_at=?,updated_by=? WHERE id=?", (now(), who(), uid))
+        log("unidade inativada", row["nome"])
+        db().commit()
     return jsonify(ok=True)
 
 
@@ -936,6 +950,7 @@ def sol_state(c):
         etapas=[dict(r) for r in c.execute("SELECT * FROM sol_etapas ORDER BY ordem, id")],
         abertas=[dict(r) for r in c.execute("SELECT s.* FROM solicitacoes s JOIN sol_etapas e ON e.id=s.etapa_id "
                                             "WHERE e.final=0 ORDER BY s.criado_em")],
+        responsaveis=[r["responsavel"] for r in c.execute("SELECT DISTINCT responsavel FROM solicitacoes WHERE responsavel != '' ORDER BY responsavel")],
         jira_base=(c.execute("SELECT valor FROM settings WHERE chave='jira_base'").fetchone() or {"valor": ""})["valor"])
 
 
@@ -1135,6 +1150,34 @@ def sol_delete(sid):
     return jsonify(ok=True)
 
 
+def _sol_request_filters(where, args):
+    for param, column in (("cat", "categoria_id"), ("sub", "subcategoria_id"), ("pri", "prioridade")):
+        value = request.args.get(param, "")
+        if value:
+            where.append("s." + column + " = ?")
+            args.append(_int(value) if column in ("categoria_id", "subcategoria_id") else value)
+    resp = request.args.get("resp", "")
+    if resp == "__none":
+        where.append("COALESCE(s.responsavel,'') = ''")
+    elif resp:
+        where.append("s.responsavel = ?")
+        args.append(resp)
+
+
+@app.get("/api/sol/unidade/<int:uid>")
+def sol_unit_items(uid):
+    where, args = ["s.unidade_id = ?"], [uid]
+    dias = _int(request.args.get("dias")) or 0
+    if dias > 0:
+        where.append("s.criado_em >= ?")
+        args.append(_cutoff(dias))
+    _sol_request_filters(where, args)
+    items = db().execute("SELECT s.*,e.nome AS etapa_nome,e.final AS etapa_final FROM solicitacoes s "
+                         "JOIN sol_etapas e ON e.id=s.etapa_id WHERE " + " AND ".join(where) +
+                         " ORDER BY s.criado_em DESC,s.id DESC", args)
+    return jsonify(items=[dict(r) for r in items])
+
+
 @app.get("/api/sol/ranking")
 def sol_ranking():
     """Unidades que mais nos acionam: solicitações no período (0 = todo o histórico), com filtro opcional de categoria."""
@@ -1143,15 +1186,13 @@ def sol_ranking():
     if dias > 0:
         where.append("s.criado_em >= ?")
         args.append(_cutoff(dias))
-    if cat:
-        where.append("s.categoria_id = ?")
-        args.append(cat)
+    _sol_request_filters(where, args)
     w = " AND ".join(where)
     rows = [dict(r) for r in c.execute(
         "SELECT u.id, u.nome, u.uf, u.tipo, u.sigla, COUNT(*) AS tot, SUM(e.final=0) AS ab, MAX(s.criado_em) AS ultima, "
         "AVG(CASE WHEN e.final=1 THEN julianday(s.finalizado_em) - julianday(s.criado_em) END) AS media_dias "
         "FROM solicitacoes s JOIN sol_etapas e ON e.id=s.etapa_id JOIN units u ON u.id=s.unidade_id "
-        f"WHERE {w} GROUP BY u.id ORDER BY tot DESC, ab DESC, u.nome LIMIT 300", args)]
+        f"WHERE {w} GROUP BY u.id ORDER BY tot DESC, ab DESC, u.nome", args)]
     top = {}
     for r in c.execute("SELECT s.unidade_id AS u, COALESCE(sc.nome, ca.nome) AS nome, COUNT(*) AS n FROM solicitacoes s "
                        "JOIN sol_categorias ca ON ca.id=s.categoria_id LEFT JOIN sol_subcategorias sc ON sc.id=s.subcategoria_id "
@@ -1162,9 +1203,52 @@ def sol_ranking():
         r["top"] = top.get(r["id"], [])[:3]
         r["ocorrencias_abertas"] = inc.get(r["id"], 0)
         r["media_dias"] = round(r["media_dias"], 1) if r["media_dias"] is not None else None
-    sem = c.execute("SELECT COUNT(*) FROM solicitacoes s WHERE s.unidade_id IS NULL" + (" AND s.criado_em >= ?" if dias > 0 else "")
-                    + (" AND s.categoria_id = ?" if cat else ""), [a for a in args]).fetchone()[0]
+    sem = c.execute("SELECT COUNT(*) FROM solicitacoes s WHERE " + w.replace("s.unidade_id IS NOT NULL", "s.unidade_id IS NULL"), args).fetchone()[0]
     return jsonify(rows=rows, sem_unidade=sem)
+
+
+@app.get("/api/sol/finalizadas/export")
+def sol_finalizadas_export():
+    from io import BytesIO
+    from openpyxl import Workbook
+    from flask import send_file
+    where, args = ["e.final=1"], []
+    dias = _int(request.args.get("dias")) or 0
+    if dias > 0:
+        where.append("(s.finalizado_em >= ? OR s.finalizado_em IS NULL)")
+        args.append(_cutoff(dias))
+    _sol_request_filters(where, args)
+    rows = db().execute("SELECT s.*,e.nome AS etapa_nome,ca.nome AS categoria,sc.nome AS subcategoria,"
+                        "u.nome AS unidade,u.uf FROM solicitacoes s JOIN sol_etapas e ON e.id=s.etapa_id "
+                        "JOIN sol_categorias ca ON ca.id=s.categoria_id LEFT JOIN sol_subcategorias sc ON sc.id=s.subcategoria_id "
+                        "LEFT JOIN units u ON u.id=s.unidade_id WHERE " + " AND ".join(where) + " ORDER BY s.finalizado_em DESC,s.id DESC", args)
+    q = request.args.get("q", "").strip().casefold()
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "Finalizadas"
+    sheet.append(["ID", "Titulo", "Categoria", "Subcategoria", "Unidade", "UF", "Solicitante", "Responsavel", "Prioridade", "Aberta em", "Finalizada em", "Dias ate finalizar", "Resultado", "Jira", "Link", "Descricao"])
+    for row in rows:
+        r = dict(row)
+        unit = (r["unidade"] + " (" + r["uf"] + ")") if r["unidade"] else r["unidade_txt"]
+        import unicodedata
+        search = " ".join(str(v or "") for v in [r["titulo"],r["jira"],r["solicitante"],r["responsavel"],r["descricao"],unit])
+        normalized = lambda value: "".join(c for c in unicodedata.normalize("NFD", value.casefold()) if unicodedata.category(c) != "Mn")
+        if q and normalized(q) not in normalized(search):
+            continue
+        days = max(0, (datetime.fromisoformat(r["finalizado_em"]) - datetime.fromisoformat(r["criado_em"])).days) if r["finalizado_em"] else None
+        sheet.append([r["id"],r["titulo"],r["categoria"],r["subcategoria"],r["unidade"] or r["unidade_txt"],r["uf"],r["solicitante"],r["responsavel"],r["prioridade"],r["criado_em"],r["finalizado_em"],days,r["etapa_nome"],r["jira"],r["link"],r["descricao"]])
+        for cell in sheet[sheet.max_row]:
+            if isinstance(cell.value, str):
+                cell.data_type = "s"
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    from openpyxl.utils import get_column_letter
+    for col in range(1, 17):
+        sheet.column_dimensions[get_column_letter(col)].width = 26
+    out = BytesIO()
+    book.save(out)
+    out.seek(0)
+    return send_file(out, as_attachment=True, download_name="solicitacoes-finalizadas.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.get("/api/sol/finalizadas")

@@ -64,7 +64,7 @@ function abCalc(ab, M) {
   const start = parseStart(ab.v[M.papel.start]);
   const stale = daysSince(ab.last_change_at) >= PARADA_DIAS;
   let status = "andamento";
-  if (ab.saiu_em) status = "saiu"; else if (apT === 0) status = "descartada"; else if (standby) status = "standby"; else if (!cur) status = "concluida";
+  if (ab.unidade_id) status = "enviada"; else if (ab.saiu_em) status = "saiu"; else if (apT === 0) status = "descartada"; else if (standby) status = "standby"; else if (!cur) status = "concluida";
   return { ph, cur, golive, standby, start, stale, status, overall: apT ? Math.round(okT / apT * 100) : 0,
     blocked: ph.flatMap(p => p.blocked), goDate: isoDate(golive) ? new Date(golive + "T00:00:00") : null };
 }
@@ -109,10 +109,10 @@ function pipeList() {
   const q = norm($("#fPipeQ").value), uf = $("#fPipeUf").value, fase = $("#fPipeFase").value, sit = $("#fPipeSit").value,
     sort = $("#fPipeSort").value, pri = $("#fPipePri").value;
   const sitOk = r => ({
-    andamento: r.c.status === "andamento", todas: r.c.status !== "saiu", standby: r.c.status === "standby", bloq: r.c.blocked.length > 0 && r.c.status !== "saiu",
-    parada: r.c.stale && r.c.status === "andamento", concluida: r.c.status === "concluida", saiu: r.c.status === "saiu", descartada: r.c.status === "descartada",
+    andamento: r.c.status === "andamento", todas: !["saiu", "enviada"].includes(r.c.status), standby: r.c.status === "standby", bloq: r.c.blocked.length > 0 && r.c.status !== "saiu",
+    parada: r.c.stale && r.c.status === "andamento", enviada: r.c.status === "enviada", concluida: r.c.status === "concluida", saiu: r.c.status === "saiu", descartada: r.c.status === "descartada",
   }[sit] ?? true);
-  const list = rows.filter(r => sitOk(r) && (!uf || r.ab.uf === uf) && (!fase || (r.c.cur && String(r.c.cur.f.id) === fase)) &&
+  const list = rows.filter(r => (sit === "enviada" || r.c.status !== "enviada") && sitOk(r) && (!uf || r.ab.uf === uf) && (!fase || (r.c.cur && String(r.c.cur.f.id) === fase)) &&
     (!pri || (pri === "none" ? !r.ab.prioridade : r.ab.prioridade === pri)) &&
     (!q || norm([r.ab.nome, r.ab.v[M.papel.candidato]].join(" ")).includes(q)));
   list.sort((a, b) => sort === "nome" ? a.ab.nome.localeCompare(b.ab.nome)
@@ -287,12 +287,12 @@ async function commitAbUp() {
 document.addEventListener("click", async e => {
   const b = e.target.closest("button, [data-ab]");
   if (!b) return;
-  if (b.dataset.ab && !b.closest("#dlgAb")) { if (!(editing && b.closest(".w"))) openAb(b.dataset.ab); return; }
+  if (b.dataset.ab && b.tagName !== "FORM" && !b.closest("#dlgAb")) { if (!(editing && b.closest(".w"))) openAb(b.dataset.ab); return; }
   switch (b.id) {
     case "btnAbToUnit": {
       const { M, rows } = pipeAll(), ab = rows.find(x => x.ab.id == abOpenId)?.ab; if (!ab) return;
       $("#dlgAb").close();
-      if (ab.unidade_id && S.units.some(u => u.id == ab.unidade_id)) return openUnit(ab.unidade_id);
+      if (ab.unidade_id && S.units.some(u => u.id == ab.unidade_id)) return showUnitInList(ab.unidade_id);
       const first = (ab.nome.split(/\s+/)[0] || "").toUpperCase(), cand = ab.v[M.papel.candidato] || "";
       return openUnit(null, { nome: ab.nome, uf: ab.uf, tipo: TIPO_LABEL[first] ? first : "", situacao: "ativa", responsavel: cand, franqueado: cand,
         celular: ab.v[M.papel.celular] || "", desde: new Date().toISOString().slice(0, 10) }, ab.id);

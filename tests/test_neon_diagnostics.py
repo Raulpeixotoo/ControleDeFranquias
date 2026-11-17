@@ -1,6 +1,6 @@
 import unittest
 
-from migrar_para_neon import connection_hint, normalize_url
+from scripts.migrar_para_neon import connection_hint, normalize_url
 
 
 class NeonDiagnostics(unittest.TestCase):

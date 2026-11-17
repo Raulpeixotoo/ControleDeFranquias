@@ -30,7 +30,7 @@ const priBadge = p => p ? `<span class="pri pri-${p}">${PRI_LABEL[p]}</span>` : 
 const priOptions = selected => `<option value="">— sem prioridade</option>` + PRIORIDADES.map(([v, l]) => `<option value="${v}" ${v === (selected || "") ? "selected" : ""}>${l}</option>`).join("");
 
 const ic = name => `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`;
-const showUser = () => { $("#btnUser").innerHTML = `${ic("user")} ${esc(user)}`; };
+const showUser = () => { $("#btnUser").innerHTML = `${ic("user")} <span class="nav-label">${esc(user)}</span>`; $("#btnUser").setAttribute("aria-label", "Trocar nome: " + user); };
 const optionTag = (value, label) => `<option value="${esc(value)}">${esc(label)}</option>`;
 /* Reabastece um <select> (opção fixa + extras + itens) mantendo a seleção atual enquanto ela ainda existir. */
 function fillSelect(sel, items, { first, extra = [], value = x => x, label = value, selected } = {}) {
@@ -336,7 +336,7 @@ const WIDGETS = {
   mudancas: { title: "Novas e saídas do último upload", size: 2, render: () => {
     const rows = S.latest_changes.filter(c => c.kind !== "alterada").slice(0, 8);
     const lab = { nova: ["b-ok", "Nova"], saiu: ["b-critica", "Saiu"], reativada: ["b-baixa", "Voltou"] };
-    return rows.length ? `<div class="list">${rows.map(c => `<div class="item" data-edit-unit="${c.unit_id}"><span class="badge ${lab[c.kind][0]}">${lab[c.kind][1]}</span>
+    return rows.length ? `<div class="list">${rows.map(c => `<div class="item" data-view-unit="${c.unit_id}"><span class="badge ${lab[c.kind][0]}">${lab[c.kind][1]}</span>
       <div class="main"><div class="t">${esc(c.nome)}</div><div class="s">${esc(c.chave.split("|")[0])} · ${esc(tipoLabel(c.tipo))}</div></div></div>`).join("")}</div>`
       : `<div class="empty">Sem novas/saídas no último upload</div>`; } },
   evolucao: { title: "Evolução da rede (unidades ativas)", size: 2, render: () => {
@@ -428,18 +428,33 @@ function renderDashFilter() {
   const cur = dashTipos === "all" ? tipos : Array.isArray(dashTipos) ? dashTipos : MAIN_TIPOS;
   const live = t => S.units.filter(u => u.tipo === t && isLive(u)).length;
   $("#dashFilter").innerHTML = `<span class="muted">Mostrar:</span>` + tipos.map(t =>
-    `<button class="fchip ${cur.includes(t) ? "on" : ""}" data-dtipo="${esc(t)}" title="${esc(tipoLabel(t))}">${esc(t)} <small>${live(t)}</small></button>`).join("") +
-    `<span class="spacer"></span><button class="btn sm ghost" data-dpreset="main">Só CO · LJ · PA · FL</button><button class="btn sm ghost" data-dpreset="all">Todos</button>`;
+    `<button class="fchip ${cur.includes(t) ? "on" : ""}" data-dtipo="${esc(t)}" aria-pressed="${cur.includes(t)}" title="${esc(tipoLabel(t))}">${esc(t)} <small>${live(t)}</small></button>`).join("") +
+    `<span class="spacer"></span><button class="btn sm ghost" data-dpreset="main">Só CO · LJ · PA · FL</button><button class="btn sm ghost" data-dpreset="all">Todos</button><button class="btn sm ghost" data-dpreset="none">Limpar</button>`;
 }
 $("#dashFilter").addEventListener("click", e => {
   const t = e.target.closest("[data-dtipo]")?.dataset.dtipo, p = e.target.closest("[data-dpreset]")?.dataset.dpreset;
-  if (p) return setDashTipos(p === "all" ? "all" : null);
+  if (p) return setDashTipos(p === "all" ? "all" : p === "none" ? [] : null);
   if (!t) return;
   const all = [...new Set([...MAIN_TIPOS, ...S.units.map(u => u.tipo).filter(Boolean)])];
   const cur = dashTipos === "all" ? all : Array.isArray(dashTipos) ? dashTipos : MAIN_TIPOS;
   const next = cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t];
-  setDashTipos(next.length ? next : null);
+  setDashTipos(next);
 });
+
+let dashPackFrame = 0;
+const dashSizeObserver = new ResizeObserver(() => scheduleDashPack());
+function scheduleDashPack() {
+  cancelAnimationFrame(dashPackFrame);
+  dashPackFrame = requestAnimationFrame(() => {
+    const grid = $("#dash");
+    if (!grid.getClientRects().length || !grid.clientWidth) return;
+    for (const card of grid.children) {
+      const rows = Math.ceil(card.getBoundingClientRect().height + 20);
+      const value = `span ${rows}`;
+      if (card.style.gridRowEnd !== value) card.style.gridRowEnd = value;
+    }
+  });
+}
 
 function renderDash() {
   if (dragging) return;
@@ -456,6 +471,10 @@ function renderDash() {
       <div class="ctl"><button data-act="size" title="Tamanho">↔</button><button data-act="hide" title="Ocultar">✕</button></div>
       ${isKpi ? "" : `<h4>${esc(def.title)}</h4>`}<div class="body">${def.render(D)}</div></div>`;
   }).join("");
+  dashSizeObserver.disconnect();
+  dashSizeObserver.observe(el);
+  for (const card of el.children) dashSizeObserver.observe(card);
+  scheduleDashPack();
   const tray = $("#dashTray");
   tray.hidden = !editing;
   $("#editHint").hidden = !editing;
@@ -469,6 +488,7 @@ function renderDash() {
 }
 
 /* ============ unidades ============ */
+let unitDashboardTypes = null;
 function renderUnits() {
   const D = derive();
   const q = norm($("#fUnitQ").value), uf = $("#fUnitUf").value, tipo = $("#fUnitTipo").value, sa = $("#fUnitSaude").value,
@@ -476,7 +496,9 @@ function renderUnits() {
   const list = S.units.filter(u => {
     const h = D.health[u.id];
     if (uf && u.uf !== uf) return false;
-    if (tipo && u.tipo !== tipo) return false;
+    if (tipo === "__painel") {
+      if (!unitDashboardTypes || !unitDashboardTypes.includes(u.tipo)) return false;
+    } else if (tipo && u.tipo !== tipo) return false;
     if (cons && u.consultor !== cons) return false;
     if (q && !norm([u.nome, u.sigla, u.cidade, u.responsavel, u.franqueado, u.unidade_master, u.consultor, u.cnpj, u.razao_social, u.ponto, u.tipo,
       u.email, u.email_gestor, u.telefone, u.celular, u.endereco, u.bairro, u.cep].join(" ")).includes(q)) return false;
@@ -512,14 +534,15 @@ function renderUnits() {
       ${(S.sol_units[u.id] || {}).tot ? `<div class="meta">Solicitações: <strong>${S.sol_units[u.id].d90}</strong> em 90 dias · ${S.sol_units[u.id].tot} no total${S.sol_units[u.id].ab ? ` · <strong>${S.sol_units[u.id].ab} aberta(s)</strong>` : ""}</div>` : ""}
       ${h.open.length ? `<div class="meta">${h.open.length} ocorrência(s) aberta(s): ${esc(h.open[0].titulo)}${h.open.length > 1 ? "…" : ""}</div>` : ""}
       <div class="foot"><button class="btn sm" data-edit-unit="${u.id}">Editar</button>
-        <button class="btn sm danger" data-new-oc="${u.id}">${ic("plus")} Ocorrência</button></div></article>`;
+        <button class="btn sm" data-new-oc="${u.id}">Ocorrência</button>
+        ${live ? `<button class="btn sm danger" data-inactivate-unit="${u.id}">Inativar unidade</button>` : ""}</div></article>`;
   }).join("") : `<div class="empty">${S.units.length ? "Nenhuma unidade com esses filtros." : "Nenhuma unidade cadastrada ainda. Use “Nova unidade” ou “Importar”."}</div>`;
 }
 
 function fillFilters() {
   const ufs = [...new Set(S.units.map(u => u.uf))].sort(), tipos = [...new Set(S.units.map(u => u.tipo).filter(Boolean))].sort();
   fillSelect($("#fUnitUf"), ufs, { first: "Todas UFs" });
-  fillSelect($("#fUnitTipo"), tipos, { first: "Todos os tipos", label: tipoLabel });
+  fillSelect($("#fUnitTipo"), unitDashboardTypes === null ? tipos : [...tipos, "__painel"], { first: "Todos os tipos", label: t => t === "__painel" ? (unitDashboardTypes.length ? "Tipos do painel: " + unitDashboardTypes.join(" / ") : "Nenhum tipo (painel)") : tipoLabel(t) });
   fillSelect($("#fUnitConsultor"), [...new Set(S.units.map(u => u.consultor).filter(Boolean))].sort(), { first: "Todos consultores" });
   fillSelect($("#fAbUf"), ufs, { first: "Todas UFs" });
   $("#tiposList").innerHTML = [...new Set(["Franquia", "Hub", "Ponto de Coleta", ...S.units.map(u => u.tipo).filter(Boolean)])].map(t => `<option value="${esc(t)}">`).join("");
@@ -629,6 +652,20 @@ function unitOptions(sel, selected) {
 
 const UNIT_FORM_COLS = ["sigla", "ponto", "aeroporto", "desde", "cnpj", "razao_social", "franqueado", "unidade_master", "equipe", "consultor", "email", "email_gestor", "telefone", "celular", "endereco", "bairro", "cep"];
 /* prefill: valores iniciais de uma unidade nova (ex.: candidato do pipeline de aberturas); aberturaId liga a unidade ao candidato */
+function showUnitInList(id) {
+  const unit = S.units.find(u => u.id == id);
+  if (!unit) return;
+  $("#fUnitQ").value = unit.nome;
+  $("#fUnitUf").value = "";
+  $("#fUnitTipo").value = "";
+  $("#fUnitSaude").value = "";
+  $("#fUnitConsultor").value = "";
+  unitLimit = 120;
+  show("unidades");
+  renderUnits();
+  requestAnimationFrame(() => $("#units [data-edit-unit=\"" + unit.id + "\"]")?.closest("article")?.scrollIntoView({block: "nearest"}));
+}
+
 function openUnit(id, prefill, aberturaId) {
   const f = $("#formUnit"), u = S.units.find(x => x.id == id);
   fillSelect(f.uf, S.ufs);
@@ -679,6 +716,10 @@ function openOc(id, unitId) {
 }
 
 async function submitForm(form, errEl, base, dlg, extra = {}) {
+  if (form.dataset.saving) return;
+  form.dataset.saving = "1";
+  const submit = form.querySelector("[type=submit]");
+  if (submit) submit.disabled = true;
   const data = Object.fromEntries(new FormData(form));
   const id = form.dataset.id;
   try {
@@ -686,6 +727,7 @@ async function submitForm(form, errEl, base, dlg, extra = {}) {
     dlg.close(); await load(true);
     toast(id ? "Alterações salvas." : "Cadastrado com sucesso.");
   } catch (e) { errEl.textContent = e.message; }
+  finally { delete form.dataset.saving; if (submit) submit.disabled = false; }
 }
 
 /* ============ CSV ============ */
@@ -723,7 +765,7 @@ async function exportXlsx() {                           // Excel completo, gerad
 }
 /* ============ eventos ============ */
 document.addEventListener("click", async e => {
-  const t = e.target.closest("button, [data-oc], [data-go], [data-uf], [data-add], [data-quick], [data-edit-unit]");
+  const t = e.target.closest("button, [data-oc], [data-go], [data-uf], [data-add], [data-quick], [data-edit-unit], [data-view-unit]");
   if (!t) return;
   if (t.matches("[data-close]")) return t.closest("dialog").close();
   if (editing && t.closest(".w") && !t.closest(".ctl") && !t.dataset.add) return;
@@ -738,7 +780,19 @@ document.addEventListener("click", async e => {
   if (t.dataset.add) { const w = layout.find(x => x.id === t.dataset.add); w.hidden = false; saveLayout(); return renderDash(); }
   if (t.id === "btnResetLayout") { layout = DEFAULT_LAYOUT.map(x => ({ ...x })); saveLayout(); return renderDash(); }
   if (t.dataset.go) return go(t.dataset.go);
-  if (t.dataset.uf) { show("unidades"); $("#fUnitUf").value = t.dataset.uf; $("#fUnitSaude").value = ""; return renderUnits(); }
+  if (t.dataset.uf) {
+    const selected = dashTipos === "all" ? null : [...(Array.isArray(dashTipos) ? dashTipos : MAIN_TIPOS)];
+    unitDashboardTypes = selected && selected.length !== 1 ? selected : null;
+    fillFilters();
+    $("#fUnitTipo").value = selected === null ? "" : selected.length === 1 ? selected[0] : "__painel";
+    $("#fUnitUf").value = t.dataset.uf;
+    $("#fUnitSaude").value = "viva";
+    $("#fUnitQ").value = "";
+    $("#fUnitConsultor").value = "";
+    unitLimit = 120;
+    show("unidades");
+    return renderUnits();
+  }
   if (t.dataset.removeOc) {
     if (!confirm("Remover esta ocorrência?")) return;
     try { await api("/incidents/" + t.dataset.removeOc, "DELETE"); await load(true); }
@@ -746,7 +800,16 @@ document.addEventListener("click", async e => {
     return;
   }
   if (t.dataset.oc) return openOc(t.dataset.oc);
-  if (t.dataset.editUnit) return openUnit(t.dataset.editUnit);
+  if (t.dataset.inactivateUnit) {
+    const unit = S.units.find(u => u.id == t.dataset.inactivateUnit);
+    if (!unit || !confirm(`Inativar a unidade ${unit.nome}? O histórico será preservado.`)) return;
+    t.disabled = true;
+    try { await api(`/units/${unit.id}/inactivate`, "POST", {}); await load(true); toast("Unidade inativada."); }
+    catch (err) { toast(esc(err.message)); t.disabled = false; }
+    return;
+  }
+  if (t.dataset.viewUnit) return showUnitInList(t.dataset.viewUnit);
+  if (t.dataset.editUnit && t.closest("#view-unidades")) return openUnit(t.dataset.editUnit);
   if (t.dataset.snapchg) return toggleChanges(t.dataset.snapchg);
   if (t.dataset.newOc) return openOc(null, t.dataset.newOc);
   switch (t.id) {

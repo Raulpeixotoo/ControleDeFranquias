@@ -55,6 +55,41 @@ class Masters(unittest.TestCase):
         self.assertEqual(self.upload(rows[:1]).status_code, 200)
         self.assertEqual(self.client.get("/api/masters").get_json()["total"], 3)
 
+    def test_export_filter_all_pages_and_inactivation(self):
+        from openpyxl import load_workbook
+        uid = self.unit("Export unit", "123")
+        self.upload([(str(n), "User" + str(n), 123, 1, "N", 2 if n < 55 else 1) for n in range(60)])
+        item = self.client.get("/api/masters").get_json()["items"][0]
+        self.client.put(f"/api/masters/{item['id']}", json={"nome": "=Formula", "enabled": 1, "segundo_fator": "N"})
+        response = self.client.get("/api/masters/export?perfil=2&page=2")
+        self.assertEqual(response.status_code, 200)
+        sheet = load_workbook(io.BytesIO(response.data)).active
+        self.assertEqual(sheet.max_row, 56)
+        self.assertEqual(sheet["A2"].data_type, "s")
+        self.assertEqual(sheet["I2"].value, "Export unit")
+        sheet_all = load_workbook(io.BytesIO(self.client.get("/api/masters/export").data)).active
+        self.assertEqual(sheet_all.max_row, 61)
+        self.assertEqual(self.client.post(f"/api/units/{uid}/inactivate").status_code, 200)
+        unit = self.client.get(f"/api/units/{uid}").get_json()
+        self.assertEqual((unit["nome"], unit["situacao"]), ("Export unit", "inativa"))
+        self.assertEqual(self.client.get("/api/masters?vinculo=sem_unidade").get_json()["total"], 60)
+        self.assertEqual(self.client.post("/api/units/999999/inactivate").status_code, 404)
+
+    def test_unit_filter_combines_with_user_and_export(self):
+        from openpyxl import load_workbook
+        self.unit("Centro Paulista", "00123")
+        self.unit("Outra unidade", "456")
+        self.upload([("1", "Ana", 123, 1, "N", 2), ("2", "Bruno", 123, 1, "S", 1),
+                     ("3", "Ana", 456, 1, "S", 2), ("4", "Sem vinculo", 999, 1, "N", 2)])
+        self.assertEqual(self.client.get("/api/masters?unidade=paulista").get_json()["total"], 2)
+        self.assertEqual(self.client.get("/api/masters?unidade=00123&q=Ana").get_json()["total"], 1)
+        self.assertEqual(self.client.get("/api/masters?unidade=999").get_json()["total"], 1)
+        self.assertEqual(self.client.get("/api/masters?unidade=Ana").get_json()["total"], 0)
+        response = self.client.get("/api/masters/export?unidade=centro&perfil=2")
+        sheet = load_workbook(io.BytesIO(response.data)).active
+        self.assertEqual(sheet.max_row, 2)
+        self.assertEqual(sheet["A2"].value, "Ana")
+
     def test_invalid_import_is_atomic_and_csv_supported(self):
         self.assertEqual(self.upload([("1", "Valid", 1, 1, "N", 2), ("2", "Invalid", 2, 5, "N", 2)]).status_code, 400)
         self.assertEqual(self.client.get("/api/masters").get_json()["total"], 0)

@@ -18,9 +18,9 @@ function jiraUrl(it) {
   if (it.link) return it.link;
   return base && /^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(key) ? base.replace(/\/?$/, "/") + key : "";
 }
-function jiraHtml(it) {
+function jiraHtml(it, action = false) {
   const url = jiraUrl(it), key = (it.jira || "").trim();
-  if (url) return `<a class="jira" target="_blank" rel="noopener" href="${esc(url)}" title="Abrir chamado no Jira">${esc(key || "abrir chamado")} ${ic("external")}</a>`;
+  if (url) return `<a class="jira ${action ? "btn sm" : ""}" target="_blank" rel="noopener" href="${esc(url)}" title="Abrir chamado no Jira">${esc(key || "abrir chamado")}${action ? " · Abrir" : ""} ${ic("external")}</a>`;
   return key ? `<span class="jira">${esc(key)}</span>` : "";
 }
 
@@ -30,7 +30,7 @@ function fillSolFilters() {
   fillSelect($("#fSolCat"), X.categorias, { first: "Todas as categorias", value: c => c.id, label: c => c.nome });
   const cat = $("#fSolCat").value, subs = X.subcategorias.filter(s => !cat || s.categoria_id == cat), cn = Object.fromEntries(X.categorias.map(c => [c.id, c.nome]));
   fillSelect($("#fSolSub"), subs, { first: "Todas as subcategorias", value: s => s.id, label: s => (cat ? "" : cn[s.categoria_id] + " › ") + s.nome });
-  const resps = [...new Set([...X.abertas, ...solFin].map(i => i.responsavel).filter(Boolean))].sort();
+  const resps = [...new Set([...(X.responsaveis || []), ...[...X.abertas, ...solFin].map(i => i.responsavel)].filter(Boolean))].sort();
   fillSelect($("#fSolResp"), resps, { first: "Todos os responsáveis", extra: [["__none", "Sem responsável"]] });
 }
 function solFilter(items, m) {
@@ -51,7 +51,7 @@ function solCard(it, m) {
     ${un ? `<div class="scmeta">${ic("building")} ${esc(un)}</div>` : ""}
     <div class="scmeta">${ic("user")} ${esc(it.solicitante || "—")}${it.responsavel ? ` <span class="muted">→</span> ${esc(it.responsavel)}` : ""}</div>
     <div class="scfoot"><span class="age ${dias >= 15 ? "red" : dias >= 7 ? "amb" : ""}" title="Dias desde a abertura (até finalizar)">${ic("clock")} ${dias} d aberta</span>
-      ${idle >= 3 ? `<span class="muted" title="Dias sem nenhuma atualização">· parada ${idle} d</span>` : ""}<span class="spacer"></span>${jiraHtml(it)}
+      ${idle >= 3 ? `<span class="muted" title="Dias sem nenhuma atualização">· parada ${idle} d</span>` : ""}<span class="spacer"></span>${jiraHtml(it, true)}
       <button class="btn sm ghost" data-solfin="${it.id}" title="Finalizar">${ic("check")}</button></div></article>`;
 }
 function renderSolBoard(m) {
@@ -92,19 +92,32 @@ function drawSolRank() {
   const max = Math.max(1, ...rows.map(r => r.tot));
   $("#solSummary").innerHTML = `<span class="badge b-baixa">${rows.length} unidades</span> <span class="badge b-none">${rows.reduce((a, r) => a + r.tot, 0)} solicitações</span>
     ${solRank.sem_unidade ? `<span class="muted">· ${solRank.sem_unidade} sem unidade vinculada (não entram no ranking)</span>` : ""}`;
-  $("#solRank").innerHTML = rows.length ? `<div class="gscroll" style="max-height:none"><table class="pg sl"><thead><tr><th>#</th><th>Unidade</th><th>UF</th><th>Tipo</th><th>Solicitações</th>
+  const total = rows.reduce((n,r) => n+r.tot,0), opened = rows.reduce((n,r) => n+r.ab,0);
+  const cards = `<div class="sumgrid sol-rank-stats">${[[rows.length,"Unidades"],[total,"Solicitações"],[opened,"Abertas"],[total-opened,"Finalizadas"]].map(([n,label])=>`<div class="sum"><span>${label}</span><b>${n.toLocaleString('pt-BR')}</b></div>`).join('')}</div>`;
+  const charts = `<div class="sol-rank-charts"><section class="w"><h4>Unidades com mais solicitações</h4>${bars(rows.slice(0,5).map(r=>({label:r.nome,n:r.tot})))}</section><section class="w"><h4>Situação das solicitações</h4>${bars([{label:"Abertas",n:opened},{label:"Finalizadas",n:total-opened}])}</section></div>`;
+  $("#solRank").innerHTML = rows.length ? `${cards}${charts}<div class="gscroll" style="max-height:none"><table class="pg sl"><thead><tr><th>#</th><th>Unidade</th><th>UF</th><th>Tipo</th><th>Solicitações</th>
     <th>Abertas</th><th>Média p/ finalizar</th><th>Principais assuntos</th><th>Ocorrências abertas</th><th>Última</th></tr></thead><tbody>
-    ${rows.map((r, i) => `<tr class="clk" data-edit-unit="${r.id}"><td>${i + 1}</td><td class="tl"><strong>${esc(r.nome)}</strong>${r.sigla ? ` <span class="muted">${esc(r.sigla)}</span>` : ""}</td>
+    ${rows.map((r, i) => `<tr><td>${i + 1}</td><td class="tl"><button class="btn sm ghost" data-view-unit="${r.id}">${esc(r.nome)}</button>${r.sigla ? ` <span class="muted">${esc(r.sigla)}</span>` : ""}</td>
       <td>${esc(r.uf)}</td><td>${esc(r.tipo)}</td><td><span class="rbar"><i style="width:${r.tot / max * 100}%"></i></span> <strong>${r.tot}</strong></td>
       <td>${r.ab ? `<strong>${r.ab}</strong>` : "—"}</td><td>${r.media_dias === null ? "—" : String(r.media_dias).replace(".", ",") + " d"}</td>
-      <td class="tl">${esc(r.top.join(", "))}</td><td>${r.ocorrencias_abertas || "—"}</td><td>${fmtDate(r.ultima)}</td></tr>`).join("")}</tbody></table></div>`
+      <td class="tl">${esc(r.top.join(", "))}</td><td>${r.ocorrencias_abertas || "—"}</td><td>${fmtDate(r.ultima)}</td></tr><tr><td colspan="10" class="sol-rank-detail-cell"><details class="sol-rank-detail" data-rank-unit="${r.id}"><summary>Ver solicitações desta unidade (${r.tot})</summary><div class="sol-rank-items"></div></details></td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty">Nenhuma unidade com solicitações neste período.</div>`;
 }
+function solRequestParams() {
+  return new URLSearchParams({dias: $("#fSolPer").value, cat: $("#fSolCat").value,
+    sub: $("#fSolSub").value, resp: $("#fSolResp").value, pri: $("#fSolPri").value});
+}
 function renderSolRank() {
-  const per = $("#fSolPer").value, cat = $("#fSolCat").value, key = `${per}|${cat}|${lastRev}`;
+  const params = solRequestParams(), key = `${params}|${lastRev}`;
   if (solRankKey !== key) {
     solRankKey = key;
-    api(`/sol/ranking?dias=${per}&cat=${cat}`).then(r => { solRank = r; drawSolRank(); }).catch(e => toast(esc(e.message)));
+    solRank = {rows: [], sem_unidade: 0};
+    $("#solRank").innerHTML = '<div class="empty">Carregando ranking...</div>';
+    api('/sol/ranking?' + params).then(r => {
+      if (solRankKey !== key) return;
+      solRank = r; drawSolRank();
+    }).catch(e => { if (solRankKey === key) {solRankKey = ''; $("#solRank").innerHTML = `<div class="empty">${esc(e.message)}</div>`;} });
+    return;
   }
   drawSolRank();
 }
@@ -116,13 +129,14 @@ function renderSol() {
   $$("#solMode button").forEach(b => b.classList.toggle("active", b.dataset.smode === solMode));
   board.hidden = solMode !== "kanban"; $("#solList").hidden = solMode !== "lista"; $("#solRank").hidden = solMode !== "ranking";
   $("#fSolPer").hidden = solMode === "kanban";
+  $("#btnSolExport").hidden = solMode !== "lista";
   fillSolFilters();
   if (solMode === "kanban") { if (!solDrag) renderSolBoard(m); return; }
   if (solMode === "ranking") return renderSolRank();
   const key = $("#fSolPer").value + "|" + lastRev;
   if (solFinKey !== key) {
-    solFinKey = key;
-    api("/sol/finalizadas?dias=" + $("#fSolPer").value).then(r => { solFin = r.items; solFinReady = true; fillSolFilters(); drawSolList(solMaps()); }).catch(e => toast(esc(e.message)));
+    solFinKey = key; solFinReady = false;
+    api("/sol/finalizadas?dias=" + $("#fSolPer").value).then(r => { if (solFinKey !== key) return; solFin = r.items; solFinReady = true; fillSolFilters(); drawSolList(solMaps()); }).catch(e => toast(esc(e.message)));
   }
   drawSolList(m);
 }
@@ -146,7 +160,7 @@ function solOldList() {
 function solUnidadesList() {
   const um = new Map(S.units.map(u => [String(u.id), u]));
   const rows = Object.entries(S.sol_units).map(([id, v]) => ({ u: um.get(id), ...v })).filter(r => r.u && r.d90 > 0).sort((a, b) => b.d90 - a.d90 || b.ab - a.ab).slice(0, 8);
-  return rows.length ? `<div class="list">${rows.map(r => `<div class="item" data-edit-unit="${r.u.id}"><span class="badge b-baixa">${r.d90}</span>
+  return rows.length ? `<div class="list">${rows.map(r => `<div class="item" data-view-unit="${r.u.id}"><span class="badge b-baixa">${r.d90}</span>
     <div class="main"><div class="t">${esc(r.u.nome)}</div><div class="s">${esc(r.u.uf)} · ${r.ab ? `${r.ab} aberta(s) · ` : ""}${r.tot} no total</div></div></div>`).join("")}</div>`
     : `<div class="empty">Nenhuma solicitação vinculada a unidades nos últimos 90 dias</div>`;
 }
@@ -308,3 +322,27 @@ document.addEventListener("drop", e => {
   const id = d.slice(4), target = z.dataset.etapa || z.dataset.final;
   moveSol(id, target).then(() => { if (z.dataset.final) toast("Solicitação finalizada."); });
 });
+
+// Load unit details only when expanded; use the same filters as the ranking.
+document.addEventListener('toggle', async event => {
+  const detail = event.target;
+  if (!detail.matches?.('details[data-rank-unit]') || !detail.open || detail.dataset.loaded) return;
+  detail.dataset.loaded = '1';
+  const box = detail.querySelector('.sol-rank-items');
+  box.textContent = 'Carregando...';
+  try {
+    const result = await api('/sol/unidade/' + detail.dataset.rankUnit + '?' + solRequestParams());
+    if (!detail.isConnected) return;
+    box.innerHTML = result.items.map(item => `<div class="sol-rank-item"><div><button class="btn sm ghost" data-sol="${item.id}">#${item.id} · ${esc(item.titulo)}</button><div class="muted">${esc(item.etapa_nome)} · ${esc(item.responsavel || 'Sem responsável')} · ${fmtDate(item.criado_em)}</div></div>${jiraHtml(item)}</div>`).join('') || '<p class="muted">Nenhuma solicitação com estes filtros.</p>';
+  } catch (err) { delete detail.dataset.loaded; box.textContent = err.message; }
+}, true);
+$("#btnSolExport").onclick = async event => {
+  const button = event.currentTarget; button.disabled = true;
+  try {
+    const params = solRequestParams(); params.set('q', $("#fSolQ").value);
+    const response = await fetch('/api/sol/finalizadas/export?' + params, {headers:{'X-Access-Code':code,'X-User':encodeURIComponent(user)}});
+    if (!response.ok) throw new Error('Falha ao exportar. Tente novamente.');
+    const url = URL.createObjectURL(await response.blob()), link = document.createElement('a');
+    link.href = url; link.download = 'solicitacoes-finalizadas.xlsx'; document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  } catch (err) {toast(esc(err.message));} finally {button.disabled=false;}
+};
